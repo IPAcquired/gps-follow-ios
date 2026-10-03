@@ -1,4 +1,4 @@
-name: Nate's Drone frozen ZIP build and full native tests
+name: Nate's Drone iOS 1.2 Build 12 frozen source build and tests
 'on':
   workflow_dispatch: null
 permissions:
@@ -11,8 +11,8 @@ env:
   APPCI_SCHEME: GPSFollow
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
   APPCI_SOURCE_ROOT: app-source/iphone-gps-follow-app
-  APPCI_SOURCE_ZIP: iphone-gps-follow-app.zip
-  APPCI_SOURCE_ZIP_SHA256: f28af30ff6755494696e92172868581105251f21a83bea19c5df86b76f4ce88e
+  APPCI_SOURCE_ZIP: GPSFollow-iOS-1.2-build12-source.zip
+  APPCI_SOURCE_ZIP_SHA256: 990ed1f7eb89afc608392298eea8f8b143d2f6bf8172bb8bb29402110d2574df
 jobs:
   build_unsigned:
     name: Build unsigned iPhone application
@@ -195,8 +195,8 @@ jobs:
         \ re\nfolder = pathlib.Path(os.environ[\"RUNNER_TEMP\"]) / \"gpsfollow-simulator-ci\"\nreport = json.loads((folder\
         \ / \"TestSummary.json\").read_text())\nsource = \"\\n\".join(p.read_text() for p in (pathlib.Path(os.environ[\"\
         APPCI_SOURCE_ROOT\"]) / \"iOS/GPSFollowTests\").glob(\"*.swift\"))\nexpected = len(re.findall(r\"\\bfunc\\\
-        s+(test\\w+)\\s*\\(\", source))\nif expected < 37:\n    raise SystemExit(\"Expected native test inventory\
-        \ unexpectedly dropped below thirty-seven.\")\nif (report.get(\"result\") != \"Passed\" or report.get(\"\
+        s+(test\\w+)\\s*\\(\", source))\nif expected < 61:\n    raise SystemExit(\"Expected native test inventory\
+        \ unexpectedly dropped below 61.\")\nif (report.get(\"result\") != \"Passed\" or report.get(\"\
         passedTests\", 0) < expected\n        or report.get(\"failedTests\", 1) != 0 or report.get(\"skippedTests\"\
         , 1) != 0\n        or report.get(\"totalTestCount\", 0) < expected):\n    raise SystemExit(\"Native test\
         \ result did not prove all expected tests ran successfully: \" + json.dumps(report))\nprint(str(report[\"\
