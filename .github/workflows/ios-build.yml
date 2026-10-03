@@ -244,7 +244,7 @@ jobs:
                   continue
               for item in items:
                   if item.get("name") == "iPhone 16 Plus" and item.get("isAvailable") is True:
-                      identifier = str(uuid.UUID(item["udid"]))
+                      identifier = item["udid"]; uuid.UUID(identifier)
                       candidates.append((version, identifier, runtime))
           if not candidates:
               raise SystemExit("No available iPhone 16 Plus simulator compatible with selected SDK; see devices.json.")
