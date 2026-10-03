@@ -12,7 +12,7 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
   APPCI_SOURCE_ROOT: app-source/iphone-gps-follow-app
   APPCI_SOURCE_ZIP: iphone-gps-follow-app.zip
-  APPCI_SOURCE_ZIP_SHA256: f088e6f277339072e0afc8245be50d3139a58d64220cb24eebf24f3f1bb12426
+  APPCI_SOURCE_ZIP_SHA256: d89618e8ba6e25f6c4034b5718f00b494887124342f0cde2c9b22c3ed5542854
 jobs:
   build_unsigned:
     name: Build unsigned iPhone application
@@ -26,34 +26,27 @@ jobs:
         fetch-depth: 1
     - name: Verify and safely extract frozen app source
       shell: bash
-      run: "set -euo pipefail\npython3 - <<'PY'\nimport hashlib, os, pathlib, shutil,\
-        \ stat, zipfile\narchive_path = pathlib.Path(os.environ[\"APPCI_SOURCE_ZIP\"\
-        ]).resolve()\ndigest = hashlib.sha256(archive_path.read_bytes()).hexdigest()\n\
-        if digest != os.environ[\"APPCI_SOURCE_ZIP_SHA256\"]:\n    raise SystemExit(\"\
-        Source ZIP SHA-256 mismatch; refusing unreviewed source.\")\nroot = pathlib.Path(\"\
-        app-source\").resolve()\nif root.exists():\n    raise SystemExit(\"app-source\
-        \ already exists; refusing to overwrite it.\")\nprefix = \"iphone-gps-follow-app/\"\
-        \nwith zipfile.ZipFile(archive_path) as archive:\n    entries = archive.infolist()\n\
-        \    if not 1 <= len(entries) <= 256 or sum(item.file_size for item in entries)\
-        \ > 10 * 1024 * 1024:\n        raise SystemExit(\"Unexpected source archive\
-        \ size/count.\")\n    checked = []\n    targets = set()\n    for item in entries:\n\
-        \        name = item.filename\n        parts = name.rstrip(\"/\").split(\"\
-        /\")\n        mode = item.external_attr >> 16\n        if (not name.startswith(prefix)\
-        \ or \"\\\\\" in name\n                or any(part in (\"\", \".\", \"..\"\
-        ) for part in parts)\n                or stat.S_ISLNK(mode) or item.flag_bits\
-        \ & 1\n                or stat.S_IFMT(mode) not in (0, stat.S_IFREG, stat.S_IFDIR)):\n\
-        \            raise SystemExit(\"Unsafe source ZIP entry: \" + name)\n    \
-        \    target = root.joinpath(*parts).resolve()\n        try:\n            target.relative_to(root)\n\
-        \        except ValueError:\n            raise SystemExit(\"Source ZIP path\
-        \ escapes app-source.\")\n        if target in targets:\n            raise\
-        \ SystemExit(\"Duplicate source ZIP path.\")\n        targets.add(target)\n\
-        \        checked.append((item, target))\n    root.mkdir()\n    for item, target\
-        \ in checked:\n        if item.is_dir():\n            target.mkdir(parents=True,\
-        \ exist_ok=True)\n        else:\n            target.parent.mkdir(parents=True,\
-        \ exist_ok=True)\n            with archive.open(item) as source, target.open(\"\
-        xb\") as output:\n                shutil.copyfileobj(source, output)\nprint(\"\
-        Verified frozen source ZIP \" + digest + \"; safely extracted \" + str(len(entries))\
-        \ + \" entries.\")\nPY\n"
+      run: "set -euo pipefail\npython3 - <<'PY'\nimport hashlib, os, pathlib, shutil, stat, zipfile\narchive_path\
+        \ = pathlib.Path(os.environ[\"APPCI_SOURCE_ZIP\"]).resolve()\ndigest = hashlib.sha256(archive_path.read_bytes()).hexdigest()\n\
+        if digest != os.environ[\"APPCI_SOURCE_ZIP_SHA256\"]:\n    raise SystemExit(\"Source ZIP SHA-256 mismatch;\
+        \ refusing unreviewed source.\")\nroot = pathlib.Path(\"app-source\").resolve()\nif root.exists():\n   \
+        \ raise SystemExit(\"app-source already exists; refusing to overwrite it.\")\nprefix = \"iphone-gps-follow-app/\"\
+        \nwith zipfile.ZipFile(archive_path) as archive:\n    entries = archive.infolist()\n    if not 1 <= len(entries)\
+        \ <= 256 or sum(item.file_size for item in entries) > 10 * 1024 * 1024:\n        raise SystemExit(\"Unexpected\
+        \ source archive size/count.\")\n    checked = []\n    targets = set()\n    for item in entries:\n     \
+        \   name = item.filename\n        parts = name.rstrip(\"/\").split(\"/\")\n        mode = item.external_attr\
+        \ >> 16\n        if (not name.startswith(prefix) or \"\\\\\" in name\n                or any(part in (\"\
+        \", \".\", \"..\") for part in parts)\n                or stat.S_ISLNK(mode) or item.flag_bits & 1\n   \
+        \             or stat.S_IFMT(mode) not in (0, stat.S_IFREG, stat.S_IFDIR)):\n            raise SystemExit(\"\
+        Unsafe source ZIP entry: \" + name)\n        target = root.joinpath(*parts).resolve()\n        try:\n  \
+        \          target.relative_to(root)\n        except ValueError:\n            raise SystemExit(\"Source ZIP\
+        \ path escapes app-source.\")\n        if target in targets:\n            raise SystemExit(\"Duplicate source\
+        \ ZIP path.\")\n        targets.add(target)\n        checked.append((item, target))\n    root.mkdir()\n\
+        \    for item, target in checked:\n        if item.is_dir():\n            target.mkdir(parents=True, exist_ok=True)\n\
+        \        else:\n            target.parent.mkdir(parents=True, exist_ok=True)\n            with archive.open(item)\
+        \ as source, target.open(\"xb\") as output:\n                shutil.copyfileobj(source, output)\nprint(\"\
+        Verified frozen source ZIP \" + digest + \"; safely extracted \" + str(len(entries)) + \" entries.\")\n\
+        PY\n"
     - name: Check Xcode, project and shared scheme
       shell: bash
       run: 'set -euo pipefail
@@ -75,31 +68,27 @@ jobs:
         '
     - name: Compile Release for physical iPhone without signing
       shell: bash
-      run: "set -euo pipefail\nxcodebuild build \\\n  -project \"$APPCI_PROJECT\"\
-        \ -scheme \"$APPCI_SCHEME\" \\\n  -configuration Release -destination 'generic/platform=iOS'\
-        \ \\\n  -derivedDataPath \"$RUNNER_TEMP/gpsfollow-device-derived\" \\\n  -resultBundlePath\
-        \ \"$RUNNER_TEMP/gpsfollow-device-ci/DeviceBuild.xcresult\" \\\n  CODE_SIGNING_ALLOWED=NO\
-        \ CODE_SIGNING_REQUIRED=NO \\\n  CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \\\n\
-        \  2>&1 | tee \"$RUNNER_TEMP/gpsfollow-device-ci/build.log\"\n"
+      run: "set -euo pipefail\nxcodebuild build \\\n  -project \"$APPCI_PROJECT\" -scheme \"$APPCI_SCHEME\" \\\n\
+        \  -configuration Release -destination 'generic/platform=iOS' \\\n  -derivedDataPath \"$RUNNER_TEMP/gpsfollow-device-derived\"\
+        \ \\\n  -resultBundlePath \"$RUNNER_TEMP/gpsfollow-device-ci/DeviceBuild.xcresult\" \\\n  CODE_SIGNING_ALLOWED=NO\
+        \ CODE_SIGNING_REQUIRED=NO \\\n  CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= \\\n  2>&1 | tee \"$RUNNER_TEMP/gpsfollow-device-ci/build.log\"\
+        \n"
     - name: Package unsigned application and provenance
       shell: bash
       env:
         APPCI_GIT_SHA: ${{ github.sha }}
       run: "set -euo pipefail\ntest -d \"$RUNNER_TEMP/gpsfollow-device-derived/Build/Products/Release-iphoneos/GPSFollow.app\"\
         \nditto -c -k --sequesterRsrc --keepParent \\\n  \"$RUNNER_TEMP/gpsfollow-device-derived/Build/Products/Release-iphoneos/GPSFollow.app\"\
-        \ \\\n  \"$RUNNER_TEMP/gpsfollow-device-ci/GPSFollow-unsigned-ios.app.zip\"\
-        \npython3 - <<'PY'\nimport datetime, hashlib, json, os, pathlib, subprocess\n\
-        folder = pathlib.Path(os.environ[\"RUNNER_TEMP\"]) / \"gpsfollow-device-ci\"\
-        \narchive = folder / \"GPSFollow-unsigned-ios.app.zip\"\nmanifest = {\n  \
-        \  \"commit\": os.environ[\"APPCI_GIT_SHA\"],\n    \"built_utc\": datetime.datetime.now(datetime.timezone.utc).isoformat(),\n\
-        \    \"xcode\": subprocess.check_output([\"xcodebuild\", \"-version\"], text=True).strip(),\n\
-        \    \"sdk\": subprocess.check_output([\"xcrun\", \"--sdk\", \"iphoneos\"\
-        , \"--show-sdk-version\"], text=True).strip(),\n    \"configuration\": \"\
-        Release\", \"platform\": \"iphoneos\", \"signed\": False,\n    \"installable_on_physical_iphone\"\
-        : False,\n    \"archive_sha256\": hashlib.sha256(archive.read_bytes()).hexdigest(),\n\
-        \    \"note\": \"Compile artifact only. Apple device signing/provisioning\
-        \ and installation remain separate.\"\n}\n(folder / \"BuildSummary.json\"\
-        ).write_text(json.dumps(manifest, indent=2) + \"\\n\")\nPY\n"
+        \ \\\n  \"$RUNNER_TEMP/gpsfollow-device-ci/GPSFollow-unsigned-ios.app.zip\"\npython3 - <<'PY'\nimport datetime,\
+        \ hashlib, json, os, pathlib, subprocess\nfolder = pathlib.Path(os.environ[\"RUNNER_TEMP\"]) / \"gpsfollow-device-ci\"\
+        \narchive = folder / \"GPSFollow-unsigned-ios.app.zip\"\nmanifest = {\n    \"commit\": os.environ[\"APPCI_GIT_SHA\"\
+        ],\n    \"built_utc\": datetime.datetime.now(datetime.timezone.utc).isoformat(),\n    \"xcode\": subprocess.check_output([\"\
+        xcodebuild\", \"-version\"], text=True).strip(),\n    \"sdk\": subprocess.check_output([\"xcrun\", \"--sdk\"\
+        , \"iphoneos\", \"--show-sdk-version\"], text=True).strip(),\n    \"configuration\": \"Release\", \"platform\"\
+        : \"iphoneos\", \"signed\": False,\n    \"installable_on_physical_iphone\": False,\n    \"archive_sha256\"\
+        : hashlib.sha256(archive.read_bytes()).hexdigest(),\n    \"note\": \"Compile artifact only. Apple device\
+        \ signing/provisioning and installation remain separate.\"\n}\n(folder / \"BuildSummary.json\").write_text(json.dumps(manifest,\
+        \ indent=2) + \"\\n\")\nPY\n"
     - name: Save unsigned application artifact
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
       with:
@@ -140,113 +129,95 @@ jobs:
         fetch-depth: 1
     - name: Verify and safely extract frozen app source
       shell: bash
-      run: "set -euo pipefail\npython3 - <<'PY'\nimport hashlib, os, pathlib, shutil,\
-        \ stat, zipfile\narchive_path = pathlib.Path(os.environ[\"APPCI_SOURCE_ZIP\"\
-        ]).resolve()\ndigest = hashlib.sha256(archive_path.read_bytes()).hexdigest()\n\
-        if digest != os.environ[\"APPCI_SOURCE_ZIP_SHA256\"]:\n    raise SystemExit(\"\
-        Source ZIP SHA-256 mismatch; refusing unreviewed source.\")\nroot = pathlib.Path(\"\
-        app-source\").resolve()\nif root.exists():\n    raise SystemExit(\"app-source\
-        \ already exists; refusing to overwrite it.\")\nprefix = \"iphone-gps-follow-app/\"\
-        \nwith zipfile.ZipFile(archive_path) as archive:\n    entries = archive.infolist()\n\
-        \    if not 1 <= len(entries) <= 256 or sum(item.file_size for item in entries)\
-        \ > 10 * 1024 * 1024:\n        raise SystemExit(\"Unexpected source archive\
-        \ size/count.\")\n    checked = []\n    targets = set()\n    for item in entries:\n\
-        \        name = item.filename\n        parts = name.rstrip(\"/\").split(\"\
-        /\")\n        mode = item.external_attr >> 16\n        if (not name.startswith(prefix)\
-        \ or \"\\\\\" in name\n                or any(part in (\"\", \".\", \"..\"\
-        ) for part in parts)\n                or stat.S_ISLNK(mode) or item.flag_bits\
-        \ & 1\n                or stat.S_IFMT(mode) not in (0, stat.S_IFREG, stat.S_IFDIR)):\n\
-        \            raise SystemExit(\"Unsafe source ZIP entry: \" + name)\n    \
-        \    target = root.joinpath(*parts).resolve()\n        try:\n            target.relative_to(root)\n\
-        \        except ValueError:\n            raise SystemExit(\"Source ZIP path\
-        \ escapes app-source.\")\n        if target in targets:\n            raise\
-        \ SystemExit(\"Duplicate source ZIP path.\")\n        targets.add(target)\n\
-        \        checked.append((item, target))\n    root.mkdir()\n    for item, target\
-        \ in checked:\n        if item.is_dir():\n            target.mkdir(parents=True,\
-        \ exist_ok=True)\n        else:\n            target.parent.mkdir(parents=True,\
-        \ exist_ok=True)\n            with archive.open(item) as source, target.open(\"\
-        xb\") as output:\n                shutil.copyfileobj(source, output)\nprint(\"\
-        Verified frozen source ZIP \" + digest + \"; safely extracted \" + str(len(entries))\
-        \ + \" entries.\")\nPY\n"
+      run: "set -euo pipefail\npython3 - <<'PY'\nimport hashlib, os, pathlib, shutil, stat, zipfile\narchive_path\
+        \ = pathlib.Path(os.environ[\"APPCI_SOURCE_ZIP\"]).resolve()\ndigest = hashlib.sha256(archive_path.read_bytes()).hexdigest()\n\
+        if digest != os.environ[\"APPCI_SOURCE_ZIP_SHA256\"]:\n    raise SystemExit(\"Source ZIP SHA-256 mismatch;\
+        \ refusing unreviewed source.\")\nroot = pathlib.Path(\"app-source\").resolve()\nif root.exists():\n   \
+        \ raise SystemExit(\"app-source already exists; refusing to overwrite it.\")\nprefix = \"iphone-gps-follow-app/\"\
+        \nwith zipfile.ZipFile(archive_path) as archive:\n    entries = archive.infolist()\n    if not 1 <= len(entries)\
+        \ <= 256 or sum(item.file_size for item in entries) > 10 * 1024 * 1024:\n        raise SystemExit(\"Unexpected\
+        \ source archive size/count.\")\n    checked = []\n    targets = set()\n    for item in entries:\n     \
+        \   name = item.filename\n        parts = name.rstrip(\"/\").split(\"/\")\n        mode = item.external_attr\
+        \ >> 16\n        if (not name.startswith(prefix) or \"\\\\\" in name\n                or any(part in (\"\
+        \", \".\", \"..\") for part in parts)\n                or stat.S_ISLNK(mode) or item.flag_bits & 1\n   \
+        \             or stat.S_IFMT(mode) not in (0, stat.S_IFREG, stat.S_IFDIR)):\n            raise SystemExit(\"\
+        Unsafe source ZIP entry: \" + name)\n        target = root.joinpath(*parts).resolve()\n        try:\n  \
+        \          target.relative_to(root)\n        except ValueError:\n            raise SystemExit(\"Source ZIP\
+        \ path escapes app-source.\")\n        if target in targets:\n            raise SystemExit(\"Duplicate source\
+        \ ZIP path.\")\n        targets.add(target)\n        checked.append((item, target))\n    root.mkdir()\n\
+        \    for item, target in checked:\n        if item.is_dir():\n            target.mkdir(parents=True, exist_ok=True)\n\
+        \        else:\n            target.parent.mkdir(parents=True, exist_ok=True)\n            with archive.open(item)\
+        \ as source, target.open(\"xb\") as output:\n                shutil.copyfileobj(source, output)\nprint(\"\
+        Verified frozen source ZIP \" + digest + \"; safely extracted \" + str(len(entries)) + \" entries.\")\n\
+        PY\n"
     - name: Select available iPhone 16 Plus simulator
       id: simulator
       shell: bash
-      run: "set -euo pipefail\nmkdir -p \"$RUNNER_TEMP/gpsfollow-simulator-ci\"\n\
-        test -d \"$DEVELOPER_DIR\"\nxcodebuild -version | tee \"$RUNNER_TEMP/gpsfollow-simulator-ci/xcode-version.txt\"\
-        \nxcrun simctl list devices available --json > \"$RUNNER_TEMP/gpsfollow-simulator-ci/devices.json\"\
-        \nxcrun --sdk iphonesimulator --show-sdk-version > \"$RUNNER_TEMP/gpsfollow-simulator-ci/sdk-version.txt\"\
-        \npython3 - <<'PY'\nimport json, os, pathlib, re, uuid\nfolder = pathlib.Path(os.environ[\"\
-        RUNNER_TEMP\"]) / \"gpsfollow-simulator-ci\"\ndevices = json.loads((folder\
-        \ / \"devices.json\").read_text())[\"devices\"]\nsdk = tuple(int(part) for\
-        \ part in (folder / \"sdk-version.txt\").read_text().strip().split(\".\"))\n\
-        candidates = []\nfor runtime, items in devices.items():\n    match = re.fullmatch(r\"\
-        com\\.apple\\.CoreSimulator\\.SimRuntime\\.iOS-(\\d+)-(\\d+)(?:-(\\d+))?\"\
-        , runtime)\n    if not match:\n        continue\n    version = tuple(int(part\
-        \ or 0) for part in match.groups())\n    if version < (17, 0, 0) or version\
-        \ > (sdk + (0, 0, 0))[:3]:\n        continue\n    for item in items:\n   \
-        \     if item.get(\"name\") == \"iPhone 16 Plus\" and item.get(\"isAvailable\"\
-        ) is True:\n            identifier = item[\"udid\"]\n            uuid.UUID(identifier)\
-        \  # Validate while preserving CoreSimulator identifier case.\n          \
-        \  candidates.append((version, identifier, runtime))\nif not candidates:\n\
-        \    raise SystemExit(\"No available iPhone 16 Plus simulator compatible with\
-        \ selected SDK; see devices.json.\")\nversion, identifier, runtime = max(candidates)\n\
-        (folder / \"SelectedSimulator.json\").write_text(json.dumps({\n    \"name\"\
-        : \"iPhone 16 Plus\", \"id\": identifier, \"runtime\": runtime, \"sdk\": sdk\n\
-        }, indent=2) + \"\\n\")\nwith open(os.environ[\"GITHUB_OUTPUT\"], \"a\") as\
-        \ output:\n    output.write(\"id=\" + identifier + \"\\n\")\nprint(\"Using\
-        \ iPhone 16 Plus on \" + runtime)\nPY\n"
+      run: "set -euo pipefail\nmkdir -p \"$RUNNER_TEMP/gpsfollow-simulator-ci\"\ntest -d \"$DEVELOPER_DIR\"\nxcodebuild\
+        \ -version | tee \"$RUNNER_TEMP/gpsfollow-simulator-ci/xcode-version.txt\"\nxcrun simctl list devices available\
+        \ --json > \"$RUNNER_TEMP/gpsfollow-simulator-ci/devices.json\"\nxcrun --sdk iphonesimulator --show-sdk-version\
+        \ > \"$RUNNER_TEMP/gpsfollow-simulator-ci/sdk-version.txt\"\npython3 - <<'PY'\nimport json, os, pathlib,\
+        \ re, uuid\nfolder = pathlib.Path(os.environ[\"RUNNER_TEMP\"]) / \"gpsfollow-simulator-ci\"\ndevices = json.loads((folder\
+        \ / \"devices.json\").read_text())[\"devices\"]\nsdk = tuple(int(part) for part in (folder / \"sdk-version.txt\"\
+        ).read_text().strip().split(\".\"))\ncandidates = []\nfor runtime, items in devices.items():\n    match\
+        \ = re.fullmatch(r\"com\\.apple\\.CoreSimulator\\.SimRuntime\\.iOS-(\\d+)-(\\d+)(?:-(\\d+))?\", runtime)\n\
+        \    if not match:\n        continue\n    version = tuple(int(part or 0) for part in match.groups())\n \
+        \   if version < (17, 0, 0) or version > (sdk + (0, 0, 0))[:3]:\n        continue\n    for item in items:\n\
+        \        if item.get(\"name\") == \"iPhone 16 Plus\" and item.get(\"isAvailable\") is True:\n          \
+        \  identifier = item[\"udid\"]\n            uuid.UUID(identifier)  # Validate while preserving CoreSimulator\
+        \ identifier case.\n            candidates.append((version, identifier, runtime))\nif not candidates:\n\
+        \    raise SystemExit(\"No available iPhone 16 Plus simulator compatible with selected SDK; see devices.json.\"\
+        )\nversion, identifier, runtime = max(candidates)\n(folder / \"SelectedSimulator.json\").write_text(json.dumps({\n\
+        \    \"name\": \"iPhone 16 Plus\", \"id\": identifier, \"runtime\": runtime, \"sdk\": sdk\n}, indent=2)\
+        \ + \"\\n\")\nwith open(os.environ[\"GITHUB_OUTPUT\"], \"a\") as output:\n    output.write(\"id=\" + identifier\
+        \ + \"\\n\")\nprint(\"Using iPhone 16 Plus on \" + runtime)\nPY\n"
     - name: Compile and run native tests
       shell: bash
       env:
         APPCI_SIMULATOR_ID: ${{ steps.simulator.outputs.id }}
-      run: "set -euo pipefail\npython3 -m venv \"$RUNNER_TEMP/relay-ci-venv\"\n\"\
-        $RUNNER_TEMP/relay-ci-venv/bin/python\" -m pip install --disable-pip-version-check\
-        \ -r \"$APPCI_SOURCE_ROOT/relay/requirements.txt\"\n\"$RUNNER_TEMP/relay-ci-venv/bin/python\"\
+      run: "set -euo pipefail\npython3 -m venv \"$RUNNER_TEMP/relay-ci-venv\"\n\"$RUNNER_TEMP/relay-ci-venv/bin/python\"\
+        \ -m pip install --disable-pip-version-check -r \"$APPCI_SOURCE_ROOT/relay/requirements.txt\"\n\"$RUNNER_TEMP/relay-ci-venv/bin/python\"\
         \ \"$APPCI_SOURCE_ROOT/ci/loopback_relay_fixture.py\" --report \"$RUNNER_TEMP/gpsfollow-simulator-ci/RelayFixture.json\"\
-        \ > \"$RUNNER_TEMP/gpsfollow-simulator-ci/RelayFixture.log\" 2>&1 &\nAPPCI_RELAY_PID=$!\n\
-        trap 'kill \"$APPCI_RELAY_PID\" 2>/dev/null || true; wait \"$APPCI_RELAY_PID\"\
-        \ 2>/dev/null || true' EXIT\nfor attempt in $(seq 1 50); do\n  test -f \"\
-        $RUNNER_TEMP/gpsfollow-simulator-ci/RelayFixture.ready\" && break\n  sleep\
-        \ 0.1\ndone\ntest -f \"$RUNNER_TEMP/gpsfollow-simulator-ci/RelayFixture.ready\"\
-        \nxcodebuild test \\\n  -project \"$APPCI_PROJECT\" -scheme \"$APPCI_SCHEME\"\
-        \ -configuration Debug \\\n  -destination \"platform=iOS Simulator,id=$APPCI_SIMULATOR_ID\"\
-        \ \\\n  -destination-timeout 120 -parallel-testing-enabled NO \\\n  -only-testing:GPSFollowTests\
-        \ \\\n  -derivedDataPath \"$RUNNER_TEMP/gpsfollow-simulator-derived\" \\\n\
-        \  -resultBundlePath \"$RUNNER_TEMP/gpsfollow-simulator-ci/SimulatorTests.xcresult\"\
+        \ > \"$RUNNER_TEMP/gpsfollow-simulator-ci/RelayFixture.log\" 2>&1 &\nAPPCI_RELAY_PID=$!\ntrap 'kill \"$APPCI_RELAY_PID\"\
+        \ 2>/dev/null || true; wait \"$APPCI_RELAY_PID\" 2>/dev/null || true' EXIT\nfor attempt in $(seq 1 50);\
+        \ do\n  test -f \"$RUNNER_TEMP/gpsfollow-simulator-ci/RelayFixture.ready\" && break\n  sleep 0.1\ndone\n\
+        test -f \"$RUNNER_TEMP/gpsfollow-simulator-ci/RelayFixture.ready\"\nxcodebuild test \\\n  -project \"$APPCI_PROJECT\"\
+        \ -scheme \"$APPCI_SCHEME\" -configuration Debug \\\n  -destination \"platform=iOS Simulator,id=$APPCI_SIMULATOR_ID\"\
+        \ \\\n  -destination-timeout 120 -parallel-testing-enabled NO \\\n  -only-testing:GPSFollowTests \\\n  -derivedDataPath\
+        \ \"$RUNNER_TEMP/gpsfollow-simulator-derived\" \\\n  -resultBundlePath \"$RUNNER_TEMP/gpsfollow-simulator-ci/SimulatorTests.xcresult\"\
         \ \\\n  CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \\\n  2>&1 | tee \"$RUNNER_TEMP/gpsfollow-simulator-ci/test.log\"\
-        \n# '-' is local simulator ad-hoc signing, with no Apple account/certificate/profile.\n\
-        # No device build is signed and no provisioning/publishing API is invoked.\n"
+        \n# '-' is local simulator ad-hoc signing, with no Apple account/certificate/profile.\n# No device build\
+        \ is signed and no provisioning/publishing API is invoked.\n"
     - name: Confirm the native tests actually executed
       shell: bash
-      run: "set -euo pipefail\nxcrun xcresulttool get test-results summary \\\n  --path\
-        \ \"$RUNNER_TEMP/gpsfollow-simulator-ci/SimulatorTests.xcresult\" \\\n  >\
-        \ \"$RUNNER_TEMP/gpsfollow-simulator-ci/TestSummary.json\"\npython3 - <<'PY'\n\
-        import json, os, pathlib, re\nfolder = pathlib.Path(os.environ[\"RUNNER_TEMP\"\
-        ]) / \"gpsfollow-simulator-ci\"\nreport = json.loads((folder / \"TestSummary.json\"\
-        ).read_text())\nsource = \"\\n\".join(p.read_text() for p in (pathlib.Path(os.environ[\"\
-        APPCI_SOURCE_ROOT\"]) / \"iOS/GPSFollowTests\").glob(\"*.swift\"))\nexpected\
-        \ = len(re.findall(r\"\\bfunc\\s+(test\\w+)\\s*\\(\", source))\nif expected\
-        \ < 37:\n    raise SystemExit(\"Expected native test inventory unexpectedly\
-        \ dropped below thirty-seven.\")\nif (report.get(\"result\") != \"Passed\"\
-        \ or report.get(\"passedTests\", 0) < expected\n        or report.get(\"failedTests\"\
-        , 1) != 0 or report.get(\"skippedTests\", 1) != 0\n        or report.get(\"\
-        totalTestCount\", 0) < expected):\n    raise SystemExit(\"Native test result\
-        \ did not prove all expected tests ran successfully: \" + json.dumps(report))\n\
-        print(str(report[\"passedTests\"]) + \" native XCTest methods passed.\")\n\
-        PY\n"
+      run: "set -euo pipefail\nxcrun xcresulttool get test-results summary \\\n  --path \"$RUNNER_TEMP/gpsfollow-simulator-ci/SimulatorTests.xcresult\"\
+        \ \\\n  > \"$RUNNER_TEMP/gpsfollow-simulator-ci/TestSummary.json\"\npython3 - <<'PY'\nimport json, os, pathlib,\
+        \ re\nfolder = pathlib.Path(os.environ[\"RUNNER_TEMP\"]) / \"gpsfollow-simulator-ci\"\nreport = json.loads((folder\
+        \ / \"TestSummary.json\").read_text())\nsource = \"\\n\".join(p.read_text() for p in (pathlib.Path(os.environ[\"\
+        APPCI_SOURCE_ROOT\"]) / \"iOS/GPSFollowTests\").glob(\"*.swift\"))\nexpected = len(re.findall(r\"\\bfunc\\\
+        s+(test\\w+)\\s*\\(\", source))\nif expected < 37:\n    raise SystemExit(\"Expected native test inventory\
+        \ unexpectedly dropped below thirty-seven.\")\nif (report.get(\"result\") != \"Passed\" or report.get(\"\
+        passedTests\", 0) < expected\n        or report.get(\"failedTests\", 1) != 0 or report.get(\"skippedTests\"\
+        , 1) != 0\n        or report.get(\"totalTestCount\", 0) < expected):\n    raise SystemExit(\"Native test\
+        \ result did not prove all expected tests ran successfully: \" + json.dumps(report))\nprint(str(report[\"\
+        passedTests\"]) + \" native XCTest methods passed.\")\nPY\n"
     - name: Capture app connection screen
       shell: bash
       env:
         APPCI_SIMULATOR_ID: ${{ steps.simulator.outputs.id }}
-      run: 'set -euo pipefail
-
-        xcrun simctl launch "$APPCI_SIMULATOR_ID" com.example.GPSFollow
-
-        sleep 2
-
-        xcrun simctl io "$APPCI_SIMULATOR_ID" screenshot "$RUNNER_TEMP/gpsfollow-simulator-ci/Connect-screen.png"
-
-        '
+      run: "set -euo pipefail\npython3 - <<'PY'\nimport json, os, pathlib, subprocess\nidentifier = os.environ[\"\
+        APPCI_SIMULATOR_ID\"]\nrows = json.loads(subprocess.check_output([\"xcrun\", \"simctl\", \"list\", \"devices\"\
+        , \"--json\"], timeout=30))[\"devices\"]\nmatches = [item for group in rows.values() for item in group if\
+        \ item.get(\"udid\") == identifier]\nif len(matches) != 1 or not matches[0].get(\"isAvailable\"):\n    raise\
+        \ SystemExit(\"Selected simulator is unavailable after tests.\")\nstate = matches[0].get(\"state\")\nif\
+        \ state == \"Shutdown\":\n    subprocess.run([\"xcrun\", \"simctl\", \"boot\", identifier], check=True,\
+        \ timeout=60)\nelif state != \"Booted\":\n    raise SystemExit(\"Unexpected selected simulator state: \"\
+        \ + str(state))\nsubprocess.run([\"xcrun\", \"simctl\", \"bootstatus\", identifier, \"-b\"], check=True,\
+        \ timeout=180)\napp = pathlib.Path(os.environ[\"RUNNER_TEMP\"]) / \"gpsfollow-simulator-derived/Build/Products/Debug-iphonesimulator/GPSFollow.app\"\
+        \nif not app.is_dir():\n    raise SystemExit(\"The tested simulator app was not built.\")\nsubprocess.run([\"\
+        xcrun\", \"simctl\", \"install\", identifier, str(app)], check=True, timeout=60)\nPY\nxcrun simctl launch\
+        \ \"$APPCI_SIMULATOR_ID\" com.example.GPSFollow\nsleep 2\nxcrun simctl io \"$APPCI_SIMULATOR_ID\" screenshot\
+        \ \"$RUNNER_TEMP/gpsfollow-simulator-ci/Connect-screen.png\"\n"
     - name: Save simulator results and failure diagnostics
       if: always()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
