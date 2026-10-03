@@ -1,4 +1,4 @@
-name: Nate's Drone iOS 1.2 Build 15 compatibility and contact build and tests
+name: Nate's Drone iOS 1.2 Build 18 compiler and connection fixes
 'on':
   workflow_dispatch: null
 permissions:
@@ -12,7 +12,7 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
   APPCI_SOURCE_ROOT: app-source/iphone-gps-follow-app
   APPCI_SOURCE_ZIP: iphone-gps-follow-app.zip
-  APPCI_SOURCE_ZIP_SHA256: 9bb3b3f195d188297e4f875a35e0e672a4a48d77a99d7bd082160b458e66f552
+  APPCI_SOURCE_ZIP_SHA256: 9511ee4ed8bf7b4edcca4bbb73eefb6a6362d620cbe9454b8a2b741e2e1629c1
 jobs:
   build_unsigned:
     name: Build unsigned iPhone application
