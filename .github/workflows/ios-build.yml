@@ -12,7 +12,7 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
   APPCI_SOURCE_ROOT: app-source/iphone-gps-follow-app
   APPCI_SOURCE_ZIP: iphone-gps-follow-app.zip
-  APPCI_SOURCE_ZIP_SHA256: 7a2d76fd702da261aee666e72ed4897d4a8ba3a16df0fcb8d1c1bfce6b4bae2b
+  APPCI_SOURCE_ZIP_SHA256: 6212983198b7975b4ae1734ab3f35a38cbd60ed1e52f216933eefe44bc40d312
 jobs:
   build_unsigned:
     name: Build unsigned iPhone application
