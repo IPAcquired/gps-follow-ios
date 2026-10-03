@@ -1,0 +1,114 @@
+name: Personal CAD standalone native proof
+'on':
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: personal-cad-native-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  CAD_ARCHIVE: cad-transfer-native-inputs.zip
+  CAD_ARCHIVE_BYTES: '41196'
+  CAD_ARCHIVE_SHA256: d32193ec124894f43c80e6ede6694d8283fda5db1058c0518fd7add26e16d238
+  CAD_MANIFEST_SHA256: da2d8c6ba877d8cdedf535b153f94931efa284bb9000539cdf6c84f129341629
+jobs:
+  cad_native:
+    name: Standalone Swift and Python loopback
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+    - name: Check out selected source revision
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 1
+    - name: Verify bounded archive and every source member
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "$RUNNER_TEMP/cad-native-evidence"
+        python3 - <<'PY' 2>&1 | tee "$RUNNER_TEMP/cad-native-evidence/source-check.log"
+        import hashlib,json,os,pathlib,stat,zipfile
+        workspace=pathlib.Path.cwd().resolve()
+        archive=workspace/os.environ['CAD_ARCHIVE']
+        if archive.is_symlink() or archive.stat().st_size != int(os.environ['CAD_ARCHIVE_BYTES']) or archive.stat().st_size>128*1024:
+            raise SystemExit('Unexpected archive size or link')
+        digest=hashlib.sha256(archive.read_bytes()).hexdigest()
+        if digest!=os.environ['CAD_ARCHIVE_SHA256']:raise SystemExit('Archive hash mismatch')
+        destination=workspace/'cad-native-input'
+        if destination.exists():raise SystemExit('Refusing an existing source directory')
+        with zipfile.ZipFile(archive) as z:
+            entries=z.infolist()
+            if len(entries)>32 or len({e.filename for e in entries})!=len(entries) or sum(e.file_size for e in entries)>2*1024*1024:
+                raise SystemExit('Archive entry/aggregate limit')
+            for e in entries:
+                p=pathlib.PurePosixPath(e.filename);mode=stat.S_IFMT(e.external_attr>>16)
+                if e.is_dir() or p.is_absolute() or '..' in p.parts or ':' in e.filename or chr(92) in e.filename or e.file_size>1024*1024 or e.flag_bits&1 or mode not in (0,stat.S_IFREG):
+                    raise SystemExit('Unsafe source archive member')
+            raw=z.read('candidate-manifest.json')
+            if hashlib.sha256(raw).hexdigest()!=os.environ['CAD_MANIFEST_SHA256']:raise SystemExit('Manifest hash mismatch')
+            manifest=json.loads(raw);expected=manifest['files']
+            if manifest['installed'] is not False or manifest['integrated'] is not False or manifest['private_pairing_key_read'] is not False:
+                raise SystemExit('Unexpected candidate scope')
+            if {e.filename for e in entries}!=set(expected)|{'candidate-manifest.json'}:raise SystemExit('Archive member set mismatch')
+            destination.mkdir()
+            for e in entries:
+                data=z.read(e)
+                if len(data)!=e.file_size:raise SystemExit('Archive size mismatch')
+                if e.filename!='candidate-manifest.json':
+                    record=expected[e.filename]
+                    if len(data)!=record['bytes'] or hashlib.sha256(data).hexdigest()!=record['sha256']:raise SystemExit('Source member hash mismatch')
+                target=(destination/e.filename).resolve()
+                if not target.is_relative_to(destination) or target.exists():raise SystemExit('Archive target escapes/repeats')
+                target.parent.mkdir(parents=True,exist_ok=True)
+                with target.open('xb') as f:f.write(data)
+        evidence=pathlib.Path(os.environ['RUNNER_TEMP'])/'cad-native-evidence'
+        record={'source_zip_sha256':digest,'manifest_sha256':os.environ['CAD_MANIFEST_SHA256'],'verified_member_count':len(entries),'run_id':os.environ.get('GITHUB_RUN_ID'),'commit':os.environ.get('GITHUB_SHA'),'scope':'Synthetic public pairing key; private 127.0.0.1 fixture; no app/device/private-key access'}
+        (evidence/'source-verification.json').write_text(json.dumps(record,indent=2)+'\n')
+        print(json.dumps(record,indent=2))
+        PY
+    - name: Prepare isolated pinned Python dependency
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 --version | tee "$RUNNER_TEMP/cad-native-evidence/python-version.txt"
+        swift --version | tee "$RUNNER_TEMP/cad-native-evidence/swift-version.txt"
+        python3 -m venv "$RUNNER_TEMP/cad-native-python"
+        "$RUNNER_TEMP/cad-native-python/bin/python" -m pip --disable-pip-version-check install --no-input cryptography==50.0.1 2>&1 | tee "$RUNNER_TEMP/cad-native-evidence/dependency-install.log"
+    - name: Run all seven native tests with real loopback fixture
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd cad-native-input
+        "$RUNNER_TEMP/cad-native-python/bin/python" run_native_fixture.py 2>&1 | tee "$RUNNER_TEMP/cad-native-evidence/native-run.log"
+        python3 - <<'PY'
+        import json,pathlib,re,os
+        p=pathlib.Path('native-swift-results.json');result=json.loads(p.read_text())
+        assert result['native_swift_exit']==0 and result['live_loopback_fixture'] is True and result['synthetic_public_key'] is True
+        source=pathlib.Path('SwiftTests/CADTransferCandidateTests.swift').read_text()
+        names=re.findall(r'\bfunc\s+(test\w+)\s*\(',source)
+        assert len(names)==7
+        log=result['stdout']+'\n'+result['stderr']
+        if 'skipped' in log.lower() or any(name not in log for name in names):raise SystemExit('Native tests absent or skipped; refusing incomplete cross-language proof')
+        report={'native_expected':len(names),'native_test_names':names,'native_exit':0,'live_swift_python_loopback':True,'synthetic_public_key':True,'no_skipped_tests':True}
+        evidence=pathlib.Path(os.environ['RUNNER_TEMP'])/'cad-native-evidence'
+        (evidence/'native-verification.json').write_text(json.dumps(report,indent=2)+'\n')
+        print(json.dumps(report,indent=2))
+        PY
+    - name: Collect results on success or failure
+      if: always()
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "$RUNNER_TEMP/cad-native-evidence"
+        if [ -f cad-native-input/native-swift-results.json ]; then
+          cp cad-native-input/native-swift-results.json "$RUNNER_TEMP/cad-native-evidence/"
+        fi
+    - name: Preserve native evidence on success or failure
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: personal-cad-native-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/cad-native-evidence
+        if-no-files-found: error
+        retention-days: 30
