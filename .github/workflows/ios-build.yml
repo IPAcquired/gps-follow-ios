@@ -1,4 +1,4 @@
-name: Nate's Drone iOS 1.2 Build 13 frozen source build and tests
+name: Nate's Drone iOS 1.2 Build 14 adaptive iPhone build and tests
 'on':
   workflow_dispatch: null
 permissions:
@@ -12,7 +12,7 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
   APPCI_SOURCE_ROOT: app-source/iphone-gps-follow-app
   APPCI_SOURCE_ZIP: iphone-gps-follow-app.zip
-  APPCI_SOURCE_ZIP_SHA256: eb17722b949d96be30b84e0e16526465561c7c67b293cc01fdf1a131b4fef2a2
+  APPCI_SOURCE_ZIP_SHA256: 2956c1ca1df69ee0c009c0927289ce4d0309cd433136bc812d8effc3fc7ce540
 jobs:
   build_unsigned:
     name: Build unsigned iPhone application
