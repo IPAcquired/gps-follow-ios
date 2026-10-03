@@ -14,7 +14,7 @@ concurrency:
 env:
   APPCI_SOURCE_ROOT: app-source/iphone-gps-follow-app
   APPCI_SOURCE_ZIP: iphone-gps-follow-app.zip
-  APPCI_SOURCE_ZIP_SHA256: d3dc404a5abaf1c1cf9737604e106ac85384267c1bef56cca7d492b4b3656f6a
+  APPCI_SOURCE_ZIP_SHA256: 7a75e52913845fd5c1de1d7cb9ce762e0e210821f59d16bfee0806cb193cd861
   APPCI_PROJECT: app-source/iphone-gps-follow-app/iOS/GPSFollow.xcodeproj
   APPCI_SCHEME: GPSFollow
   # Verified in the official macOS 15 Intel image inventory; fail clearly if removed.
