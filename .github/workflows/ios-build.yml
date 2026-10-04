@@ -1,4 +1,4 @@
-name: Nate's Drone iOS 1.2 Build 20 security and relay recovery
+name: Nate's Drone iOS 1.2 Build 21 automatic flight-log sync
 'on':
   workflow_dispatch: null
 permissions:
@@ -12,7 +12,7 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
   APPCI_SOURCE_ROOT: app-source/iphone-gps-follow-app
   APPCI_SOURCE_ZIP: iphone-gps-follow-app.zip
-  APPCI_SOURCE_ZIP_SHA256: 47d4705eb0295123b64259e7fe5975e3b59ee5f7837849b8de7d1cb000f127e3
+  APPCI_SOURCE_ZIP_SHA256: a26fed17e5bcef0fa82e78f0d603264c58a113c6b6ed2ba4b8fa26d9bee3f428
 jobs:
   build_unsigned:
     name: Build unsigned iPhone application
