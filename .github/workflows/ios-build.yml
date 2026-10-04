@@ -12,7 +12,7 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
   APPCI_SOURCE_ROOT: app-source/iphone-gps-follow-app
   APPCI_SOURCE_ZIP: iphone-gps-follow-app.zip
-  APPCI_SOURCE_ZIP_SHA256: 3b21bbc03f451404c5c96661aa631525fa0a3b75ae3bc8ba950c9c25bad289ea
+  APPCI_SOURCE_ZIP_SHA256: 47d4705eb0295123b64259e7fe5975e3b59ee5f7837849b8de7d1cb000f127e3
 jobs:
   build_unsigned:
     name: Build unsigned iPhone application
@@ -234,4 +234,3 @@ jobs:
       run: 'xcrun simctl shutdown "$APPCI_SIMULATOR_ID" || true
 
         '
-
