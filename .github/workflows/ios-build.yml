@@ -1,4 +1,4 @@
-name: Nate's Drone iOS 1.2 Build 19 compiler return fix
+name: Nate's Drone iOS 1.2 Build 20 security and relay recovery
 'on':
   workflow_dispatch: null
 permissions:
@@ -12,7 +12,7 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
   APPCI_SOURCE_ROOT: app-source/iphone-gps-follow-app
   APPCI_SOURCE_ZIP: iphone-gps-follow-app.zip
-  APPCI_SOURCE_ZIP_SHA256: 2fc45b8e8cc14481abf3b0c5d0558f40b50e7a3a55fbb06e5129926a4f71f09d
+  APPCI_SOURCE_ZIP_SHA256: 3b21bbc03f451404c5c96661aa631525fa0a3b75ae3bc8ba950c9c25bad289ea
 jobs:
   build_unsigned:
     name: Build unsigned iPhone application
@@ -234,3 +234,4 @@ jobs:
       run: 'xcrun simctl shutdown "$APPCI_SIMULATOR_ID" || true
 
         '
+
