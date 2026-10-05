@@ -1,6 +1,9 @@
 name: Nate's Drone iOS 1.2 Build 24 degraded-sensor guidance and gear-layout update
 'on':
   workflow_dispatch: null
+  push:
+    branches:
+    - main
 permissions:
   contents: read
 concurrency:
