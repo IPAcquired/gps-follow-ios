@@ -1,4 +1,4 @@
-name: Nate's Drone iOS 1.2 Build 23 gear-layout update
+name: Nate's Drone iOS 1.2 Build 24 degraded-sensor guidance and gear-layout update
 'on':
   workflow_dispatch: null
 permissions:
@@ -12,7 +12,7 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
   APPCI_SOURCE_ROOT: app-source/iphone-gps-follow-app
   APPCI_SOURCE_ZIP: iphone-gps-follow-app.zip
-  APPCI_SOURCE_ZIP_SHA256: d5827295e3d58660fbe1f0f48408bcf3dcd22926931b301982fdcee3401ae23b
+  APPCI_SOURCE_ZIP_SHA256: 8e1f235eade402aeb6c2413fd921edccd090037861fd55f85074133c6da3c7fd
 jobs:
   build_unsigned:
     name: Build unsigned iPhone application
