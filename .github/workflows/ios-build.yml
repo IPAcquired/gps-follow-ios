@@ -1,4 +1,4 @@
-name: Nate's Drone iOS 1.2 Build 25 Guest Target and temporary invitation tests
+name: Nate's Drone iOS 1.2 Build 26 Target Lock and Guest Target tests
 'on':
   workflow_dispatch: null
   push:
@@ -15,7 +15,7 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
   APPCI_SOURCE_ROOT: app-source/iphone-gps-follow-app
   APPCI_SOURCE_ZIP: iphone-gps-follow-app.zip
-  APPCI_SOURCE_ZIP_SHA256: 52f209caa32f6b6ead762897a8d76aae32b3f841bc54e63be6b4c116aa3c6f17
+  APPCI_SOURCE_ZIP_SHA256: 5fa40d12544985d9cb5dfea9552b8d56db43c5efaf2881050974e4137d7a450a
 jobs:
   build_unsigned:
     name: Build unsigned iPhone application
