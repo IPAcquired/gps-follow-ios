@@ -1,0 +1,13 @@
+[Unit]
+Description=DHCP and local-only DNS for the Orange Pi private direct link
+After=orangepi-direct-link.service
+Requires=orangepi-direct-link.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/dnsmasq --keep-in-foreground --conf-file=/etc/dnsmasq.d/orangepi-direct.conf
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

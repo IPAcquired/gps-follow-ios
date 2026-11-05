@@ -1,0 +1,22 @@
+table inet orangepi_direct {
+  chain input {
+    type filter hook input priority 0; policy accept;
+    iifname "lo" accept
+    # DHCP discovery starts with 0.0.0.0 before a lease exists. Permit only the
+    # client-to-server DHCP tuple before rejecting out-of-subnet addresses.
+    iifname "ap0" udp sport 68 udp dport 67 accept
+    iifname "ap0" ip saddr != 10.42.0.0/24 drop
+    iifname "ap0" udp dport 53 accept
+    # SSH retains existing authentication and the pinned host identity.
+    iifname "ap0" tcp dport { 22, 53, 8090 } accept
+    iifname "ap0" drop
+    iifname != "ap0" tcp dport 8090 drop
+  }
+  chain forward {
+    type filter hook forward priority 0; policy accept;
+    iifname "ap0" drop
+    oifname "ap0" drop
+    iifname "usb0" drop
+    oifname "usb0" drop
+  }
+}

@@ -1,0 +1,1246 @@
+{
+  "date": "2026-11-05",
+  "scope": "Selective nonsecret source snapshot; not a complete system backup",
+  "files": [
+    {
+      "path": "source/adaptive_avoidance/arducopter-4.7.1-directional-adaptive-margin.patch",
+      "bytes": 26858,
+      "sha256": "a711637b05257fba23bbf1c0102fd371c2f9a0a334e183a7fb4bbe4823571a36"
+    },
+    {
+      "path": "source/adaptive_avoidance/loiter_dropout_test.py",
+      "bytes": 14523,
+      "sha256": "02e8e97a670a54d2d97cf19826f84db9c261dfbc3007e8cf174d81603893eee3"
+    },
+    {
+      "path": "source/adaptive_avoidance/loiter_fixed_wall_test.py",
+      "bytes": 12746,
+      "sha256": "c2735ac6925ec08f8dbae8e9ca91ab36db10ca35d3f4e28c320ce14b2d16e8c4"
+    },
+    {
+      "path": "source/adaptive_avoidance/model.py",
+      "bytes": 2352,
+      "sha256": "c4ab99dd431cc8ed308f25cb2f6d7b82f9f478522f8e7808c97a57f3d335eb56"
+    },
+    {
+      "path": "source/adaptive_avoidance/native_boundary_regression.py",
+      "bytes": 10070,
+      "sha256": "8826d15f406eef87a633220495ec3b0beb7d9b88a4d9f61b03f63283f6bdc97f"
+    },
+    {
+      "path": "source/adaptive_avoidance/native_rangefinder_dropout_regression.py",
+      "bytes": 12304,
+      "sha256": "891c7fd47514816ce66249014aea57571c3caef3bde84f0f11b7a0a418bdd1b7"
+    },
+    {
+      "path": "source/adaptive_avoidance/rangefinder-routing-verification.md",
+      "bytes": 2947,
+      "sha256": "e31375997dad529f97dd2538c17e0210eaa2eb48087968aeb54020ecebe10187"
+    },
+    {
+      "path": "source/adaptive_avoidance/README.md",
+      "bytes": 4555,
+      "sha256": "705138d9a88a1e4d7d7c97c6384985f2ad8b5ba583efcaa545744593675e5bb5"
+    },
+    {
+      "path": "source/adaptive_avoidance/sitl_dynamic_case.py",
+      "bytes": 6980,
+      "sha256": "27b29abb3d76dc1662e4419070561b41cec02103f595cdeae8c47d7efbb8133d"
+    },
+    {
+      "path": "source/adaptive_avoidance/source-audit-20260930.md",
+      "bytes": 4452,
+      "sha256": "ae61c5ed9bd93bf4290975b689108e3460b9dcf30e90d76378b9c86ecfeecfff"
+    },
+    {
+      "path": "source/adaptive_avoidance/static-package-verification-20260930.md",
+      "bytes": 4996,
+      "sha256": "756cd57db8d15f1a231f938fa890218eac7f8cdeb5e89def534c8c31b51e31a3"
+    },
+    {
+      "path": "source/adaptive_avoidance/test_model.py",
+      "bytes": 4479,
+      "sha256": "afec6c8dbfa5fdaa0f5a94cca1f8f820a8f7ca4d6bb3511034cc0757399b632e"
+    },
+    {
+      "path": "source/adaptive_avoidance/test_patch_structure.py",
+      "bytes": 3448,
+      "sha256": "bb488fa20dbd62fb62d0530204194af89daee948376ac1cb7ab23ec10aad169e"
+    },
+    {
+      "path": "source/cad/heavy-duty-tray/Four_Across_HEAVY_DUTY_MOUNTS_CC_0p6_PLA.gcode.3mf",
+      "bytes": 2403888,
+      "sha256": "3c0373a8c2ecda39c08322979a61de1b327991943f2c3752ceb1e97811007cf1"
+    },
+    {
+      "path": "source/cad/prop-guard-generators/analyze_v10.py",
+      "bytes": 6642,
+      "sha256": "981f2c5060da4b636576b1fc8ffe02a3f7e48f8a7dc6937c6df50de77a463c17"
+    },
+    {
+      "path": "source/cad/prop-guard-generators/audit_guard.py",
+      "bytes": 1503,
+      "sha256": "e134d85ac274001c8f98fdf92559bb4bf601b2e5062a0671db85676b5973f8e3"
+    },
+    {
+      "path": "source/cad/prop-guard-generators/build_prop_guard.py",
+      "bytes": 18482,
+      "sha256": "824c69323848504669f9956f75aa2e7a2882b543d49a5d0f24e947be52395b4b"
+    },
+    {
+      "path": "source/cad/prop-guard-generators/build_prop_guard_multimaterial.py",
+      "bytes": 15082,
+      "sha256": "35e255b262e80531bb860d90cbff2c370e4d7de24643f8fc6a80aba2db6b7c6a"
+    },
+    {
+      "path": "source/cad/prop-guard-generators/build_v10.py",
+      "bytes": 11890,
+      "sha256": "ff85178f503e8c042bd94a46e41f22180a0cc7f425c2446690b0a85afbc4d629"
+    },
+    {
+      "path": "source/cad/prop-guard-generators/package_v10.py",
+      "bytes": 12413,
+      "sha256": "ab88f57cdcd0f5b700bed724f41ef0f10627b636b873b4c1ea01420976d80e63"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/assembled_coordinates/PETG_Core_Half_1.stl",
+      "bytes": 468284,
+      "sha256": "9f751baed13b28a26e07a8409c4325742f49334b9b422a13786bdd584505245b"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/assembled_coordinates/PETG_Core_Half_2.stl",
+      "bytes": 465584,
+      "sha256": "01b2ea624489f5cd6de46f386b605490c25d8fbdc5a4c817016e9d1cd54f4ad3"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/assembled_coordinates/PETG_Rim_Splice_1.stl",
+      "bytes": 42284,
+      "sha256": "a62d77d47c77baea313ea3aa5ca7883ed5c4d84ae5c361117a2a594bd25bcfaa"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/assembled_coordinates/PETG_Round_Mount_38p80mm.stl",
+      "bytes": 115884,
+      "sha256": "0efc2aca688b94c321bfdeecb2a67ab86d089a08116e7ca2c7179e3eff3aa800"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/assembled_coordinates/TPU_Screw_On_Strip_1_1.stl",
+      "bytes": 86484,
+      "sha256": "6d3e0243d6bd0d9bb552c334892a8c80d97d2ce7be3fddd11e5f29d03002fda1"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/assembled_coordinates/TPU_Screw_On_Strip_1_2.stl",
+      "bytes": 86484,
+      "sha256": "ba7b43740463c54210d4fcd2012d965985462046ba7c6c41d220e6d5adc0b6f1"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/assembled_coordinates/TPU_Screw_On_Strip_2_1.stl",
+      "bytes": 86684,
+      "sha256": "43bfdd19c51dea1bcdaee91fb41168c089ce59349926561033feda69221cc9ce"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/assembled_coordinates/TPU_Screw_On_Strip_2_2.stl",
+      "bytes": 86584,
+      "sha256": "bb5fac6277292bc26fc854ba4072d36aec2450f61dbebeb36701169a9df882fc"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/ASSEMBLY_PRINTING_AND_STRUCTURE.md",
+      "bytes": 8378,
+      "sha256": "1c382e37c2590340d71dce8cf0581e8faea3ee2caeabadee7d5c758d2f5169ec"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/geometry_and_structure_audit.json",
+      "bytes": 7425,
+      "sha256": "9c90c85ab35cf2006f39a95fbb337c4cd1a2c7981795a7676fdac929b75a65d9"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/linear_fea_3mm.json",
+      "bytes": 3822,
+      "sha256": "fc2fcfb0b853450d1974657f6a1d9bbc2c2a55a297603cbe4f9b441f63b77703"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/print_ready_parts/PETG_Core_Half_1.stl",
+      "bytes": 468284,
+      "sha256": "dac48a6a11d0c9ed02a0ca6e36e4524fca117de4c4fc8f22eceb5bbd25fd7ef7"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/print_ready_parts/PETG_Core_Half_2.stl",
+      "bytes": 465584,
+      "sha256": "162affa14af097e07721fd794e009dffe91035fe99455ec54d157b856aa1e16c"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/print_ready_parts/PETG_Rim_Splice_1.stl",
+      "bytes": 42284,
+      "sha256": "aaa33d6d4d87368d4b920f3b6fc88ff5d5a1a08b93ddc732bca7d113ff7ef478"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/print_ready_parts/PETG_Round_Mount_38p80mm.stl",
+      "bytes": 115884,
+      "sha256": "80cd0444c0f6341320f95df73cb62a43f1dac964edc4b36f575637512fa56b78"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/print_ready_parts/TPU_Screw_On_Strip_1_1.stl",
+      "bytes": 86484,
+      "sha256": "8ebc8d63c9938575dfb32849a9e9b33a4026d1af7d9f28c81aa405e96f698b61"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/print_ready_parts/TPU_Screw_On_Strip_1_2.stl",
+      "bytes": 86484,
+      "sha256": "26592c7f3b0e7890921570297cc5960b4425176ae19d424a8b4544aac164f665"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/print_ready_parts/TPU_Screw_On_Strip_2_1.stl",
+      "bytes": 86684,
+      "sha256": "6a4bbb49ce722cb6a0019a2c1dd4806b24c7c7f9eb2d9c105fb79564a2b4f3da"
+    },
+    {
+      "path": "source/cad/prop-guard-v10/print_ready_parts/TPU_Screw_On_Strip_2_2.stl",
+      "bytes": 86584,
+      "sha256": "dc27aea777203bfecc025ed7b04b7a2953aa28b377ff15207fb4d10c1e4db47b"
+    },
+    {
+      "path": "source/cad/tray-generators/audit_tray.py",
+      "bytes": 1110,
+      "sha256": "68f6fa867d1eaee853bb4e10fb093e8865c9a68d654b4fdd3ccb87aa9cee7a45"
+    },
+    {
+      "path": "source/cad/tray-generators/build_four_fixed.py",
+      "bytes": 6353,
+      "sha256": "d6cc499ec2bd0b877d6882efda66b3a5bff6e4c54e487bccb4fe8a84461a16f1"
+    },
+    {
+      "path": "source/cad/tray-generators/finalize_heavy_mounts.py",
+      "bytes": 5604,
+      "sha256": "c665d26447e4816ce83a045e3f9e5f050a8e1166fdd911a47689da9ebc6651cf"
+    },
+    {
+      "path": "source/cad/tray-generators/finalize_tray.py",
+      "bytes": 15054,
+      "sha256": "cc783d1c1cd80ef2b3a3049f6c205ee7247da2786212eeee40496086a19c03bd"
+    },
+    {
+      "path": "source/cad/tray-generators/finish_four.py",
+      "bytes": 5927,
+      "sha256": "704f683756e93f96be02292707cde2e7b9ef03b7b65c2b8744305dacec515e6b"
+    },
+    {
+      "path": "source/cad/tray-generators/reinforce_tray.py",
+      "bytes": 5892,
+      "sha256": "86ae8b97d3717324d452b73202132e167a4278361610fea26bbd075a8508ed1c"
+    },
+    {
+      "path": "source/cad/tray-generators/solid_mount_modifiers.py",
+      "bytes": 2538,
+      "sha256": "f515692e248208cf3bf3c2933934a604e13315650db58fc1d702c823ae9519db"
+    },
+    {
+      "path": "source/cad/tray-generators/strengthen_four_mounts.py",
+      "bytes": 8719,
+      "sha256": "0386009897ec8212a3e1abd0d0102233210a852c0f307df5ccba3fa85b4ced11"
+    },
+    {
+      "path": "source/display-1.3.34/assets/battery.pcm",
+      "bytes": 12112,
+      "sha256": "dce7d125504e9680e05cf944ac593818fa3668baf1530375b2b5f13444f28fed"
+    },
+    {
+      "path": "source/display-1.3.34/assets/battery.wav",
+      "bytes": 12158,
+      "sha256": "a6f0c2108cbfaac9966870300f6de63976af71fceb96bfedea866f423d3bcdf0"
+    },
+    {
+      "path": "source/display-1.3.34/assets/compass.pcm",
+      "bytes": 12032,
+      "sha256": "fd929ccc0a8d10e92e5ee17c6af40a581f9fc260af1b27e080d669fddd6df3d3"
+    },
+    {
+      "path": "source/display-1.3.34/assets/compass.wav",
+      "bytes": 12078,
+      "sha256": "dc8928e893a4abedaa61a0932002bd5e962cbe595f9bed8b90289912fbe1fc75"
+    },
+    {
+      "path": "source/display-1.3.34/assets/ekf.pcm",
+      "bytes": 13392,
+      "sha256": "531fca490d23565841f61fd5e87be7b2b038a4ddce96634119d644c8350cc260"
+    },
+    {
+      "path": "source/display-1.3.34/assets/ekf.wav",
+      "bytes": 13438,
+      "sha256": "a49465ea4b272d62b84ba356c99c66330cc411691f2009b73930df375eaaae0b"
+    },
+    {
+      "path": "source/display-1.3.34/assets/general.pcm",
+      "bytes": 15552,
+      "sha256": "929da12647f8f19e73a17fbc8599b889696a7d85675f28046c78128038fdab6a"
+    },
+    {
+      "path": "source/display-1.3.34/assets/general.wav",
+      "bytes": 15598,
+      "sha256": "0ddbdad89ef51663e3ed7c8a868f9ef70a5a8513ac82e6c6386e796ea396cf4b"
+    },
+    {
+      "path": "source/display-1.3.34/assets/gps.pcm",
+      "bytes": 13992,
+      "sha256": "be48b4395108efc70b76df71a2ac66d2ac5f7bd823029938f1caa05918ae015d"
+    },
+    {
+      "path": "source/display-1.3.34/assets/gps.wav",
+      "bytes": 14038,
+      "sha256": "2986bca6624bc6edb171f9be970ad002c5c063885e45e77e684f6d12c714394d"
+    },
+    {
+      "path": "source/display-1.3.34/assets/radio.pcm",
+      "bytes": 13952,
+      "sha256": "69ff2ec38211ae2bff84746d3666d980209326cbe20a7fe05f91207ec54e1637"
+    },
+    {
+      "path": "source/display-1.3.34/assets/radio.wav",
+      "bytes": 13998,
+      "sha256": "30ab8c50201ab90814f5be8bb01ed3897af374d33e629055f5253467e29629ec"
+    },
+    {
+      "path": "source/display-1.3.34/include/AiUiState.h",
+      "bytes": 535,
+      "sha256": "964ca7e4e780c2eafcc8ae902204feccc57993625abd996ac93c67f24c25f0c3"
+    },
+    {
+      "path": "source/display-1.3.34/include/AppearancePalette.h",
+      "bytes": 654,
+      "sha256": "44a8e0cc6b2373056caf069d03b93e31220e67305e6e4fc09b2780c428ba78cf"
+    },
+    {
+      "path": "source/display-1.3.34/include/Audio.h",
+      "bytes": 230,
+      "sha256": "596a4e1954896ca76030391059f9b6fb63b0c6f9385df1bc537794875044cc7a"
+    },
+    {
+      "path": "source/display-1.3.34/include/BufferedJsonReader.h",
+      "bytes": 949,
+      "sha256": "ca68e0a55b5a6359b8b9c532b5d2d6c86c26b90bfd109df35c8c97a49894418f"
+    },
+    {
+      "path": "source/display-1.3.34/include/DesktopCodec.h",
+      "bytes": 578,
+      "sha256": "c5a2fef7e98be9158b474a8beefb8642997a65ef57c37e29ad7938fd8d57b4a4"
+    },
+    {
+      "path": "source/display-1.3.34/include/DesktopControls.h",
+      "bytes": 476,
+      "sha256": "caf1ad7da77c9f108cc647c04969257177ab1c7666f7c3bc0cbcf42cec12414d"
+    },
+    {
+      "path": "source/display-1.3.34/include/DesktopGeometry.h",
+      "bytes": 540,
+      "sha256": "5d873a3fcab9ec290396818cf021fba60677632bc27ffdc9d61c017b75bb02c3"
+    },
+    {
+      "path": "source/display-1.3.34/include/DesktopView.h",
+      "bytes": 7237,
+      "sha256": "78416e3d6f149554fbbc8124fdc75e22b3f452341d59a2bd4dfd0d8d7244a0f3"
+    },
+    {
+      "path": "source/display-1.3.34/include/DisplayBattery.h",
+      "bytes": 853,
+      "sha256": "f80f267a12e58e15b9cb4c62ab512e6b968060e70c7be469bc002042234fde9d"
+    },
+    {
+      "path": "source/display-1.3.34/include/DisplayOrientation.h",
+      "bytes": 1163,
+      "sha256": "752c01026d589ae76d7f9c9f1f8dcd105f7fb7648e9ce5635b68494edf8a958b"
+    },
+    {
+      "path": "source/display-1.3.34/include/DisplayTelemetry.h",
+      "bytes": 11591,
+      "sha256": "9ec939e7e9de9070ba59485967502ee6956b7f4e671f82e22b4ea7e38f336941"
+    },
+    {
+      "path": "source/display-1.3.34/include/FaultLayout.h",
+      "bytes": 426,
+      "sha256": "e821d3561da6f8af76d03f10250dd737d4a0af366dfcc8dbabc3d874f08ea18c"
+    },
+    {
+      "path": "source/display-1.3.34/include/Gesture.h",
+      "bytes": 1183,
+      "sha256": "1936de1e6d784943d0fae88d570cdbc09ce655aa809e0d465951c38b7356b634"
+    },
+    {
+      "path": "source/display-1.3.34/include/KeyboardLayout.h",
+      "bytes": 707,
+      "sha256": "47d7c11482eb741c412a9fa04860456a6d94d51dad16a4630b9fd2be57beefa3"
+    },
+    {
+      "path": "source/display-1.3.34/include/LightPattern.h",
+      "bytes": 2459,
+      "sha256": "3502ffb0dacffb17511b584576c0b7e2a81982dd354781248a52ddb5c2104337"
+    },
+    {
+      "path": "source/display-1.3.34/include/LinkFaultPolicy.h",
+      "bytes": 1117,
+      "sha256": "d770758f7bba1aae68731f8617686349fa5cf9f8fed1634cc96ccbc29c87742e"
+    },
+    {
+      "path": "source/display-1.3.34/include/MaintenanceGate.h",
+      "bytes": 743,
+      "sha256": "1e71add0b5f67ad0d1ec61b3b9745919bd975c4133871c791c1d77bebedb02f7"
+    },
+    {
+      "path": "source/display-1.3.34/include/OwnerLease.h",
+      "bytes": 623,
+      "sha256": "f18b69b52b2857d9ddfdbba1372d21157c8a3b3da5795bc0bdf6e7baee8d8e6e"
+    },
+    {
+      "path": "source/display-1.3.34/include/PersonalizationUI.h",
+      "bytes": 6590,
+      "sha256": "8733a40e934dda56f3217efaa75273c691a080e4c3119f451d5aed3822c7694e"
+    },
+    {
+      "path": "source/display-1.3.34/include/PhoneLocation.h",
+      "bytes": 908,
+      "sha256": "fd2e17ca214b7c7c20e2b40de9c4e16e72f4e4dc9f356988edb503e2b88e6883"
+    },
+    {
+      "path": "source/display-1.3.34/include/PiConnection.h",
+      "bytes": 842,
+      "sha256": "c2ec1080e66ea34dd442a79ba5ed28fd317f442ad10b15787ba4e18a5d4d7f87"
+    },
+    {
+      "path": "source/display-1.3.34/include/PinnedPiClient.h",
+      "bytes": 1258,
+      "sha256": "45351c7c0f37b42eb65bad24ff44168e9d2d8f51f697590092226d537c32d1ed"
+    },
+    {
+      "path": "source/display-1.3.34/include/PortraitUI.h",
+      "bytes": 13093,
+      "sha256": "72e1d0f64a48940cc3b5333b59fdb44e993cee8b7cc469de52d1d4c10a8edf0b"
+    },
+    {
+      "path": "source/display-1.3.34/include/PowerGate.h",
+      "bytes": 1419,
+      "sha256": "c8f2c09fe77831319996d534076e66e417b075069fd7e75c31fc04e291fb25e2"
+    },
+    {
+      "path": "source/display-1.3.34/include/QuickConnect.h",
+      "bytes": 764,
+      "sha256": "b0d6e9453c28f43d294ef039f13f4427629c5cbd2d854df162087fda175ebce4"
+    },
+    {
+      "path": "source/display-1.3.34/include/SessionPolicy.h",
+      "bytes": 919,
+      "sha256": "43cbb0d449de2f8f26587bc9503817890257c51a09fe50bf7b5d22e4b51f57b9"
+    },
+    {
+      "path": "source/display-1.3.34/include/StatusBar.h",
+      "bytes": 1100,
+      "sha256": "ef4522daa88fb6c7995c61602ae46f85155cbc00de96f84a8f6bca9ed36a2337"
+    },
+    {
+      "path": "source/display-1.3.34/include/Storage.h",
+      "bytes": 631,
+      "sha256": "0e013c5cfeb26220e2c24cd03e44680fa1363b6020e5ac3cfc9e540131d85965"
+    },
+    {
+      "path": "source/display-1.3.34/include/StorageFormat.h",
+      "bytes": 733,
+      "sha256": "55b983eab35f8127213637e80810d4b586b9570460c5ad2ed498a8a61d7175a6"
+    },
+    {
+      "path": "source/display-1.3.34/include/TelemetryLayout.h",
+      "bytes": 144,
+      "sha256": "c00735c67c2b1e3e3c2d976191a47f6a3449d9d624b4241181bafddd4dee979e"
+    },
+    {
+      "path": "source/display-1.3.34/include/TelemetryUI.h",
+      "bytes": 6691,
+      "sha256": "6a7403694ab38194a59fe7e344e7b70b858fa553995005c46c27af90acb5271d"
+    },
+    {
+      "path": "source/display-1.3.34/include/TimeBootstrapPolicy.h",
+      "bytes": 923,
+      "sha256": "8ed05a87fdd71499bc75f761561272276c3d9904e321a15967d509ae1faeaf4b"
+    },
+    {
+      "path": "source/display-1.3.34/include/TlsMemoryRecovery.h",
+      "bytes": 632,
+      "sha256": "d73b0331050aecb969d87a6853a5081c772f36b4048261bbee587df2ce0e3ed1"
+    },
+    {
+      "path": "source/display-1.3.34/include/TouchCalibration.h",
+      "bytes": 1098,
+      "sha256": "d7b2c990228e3a71582d25d2b5b21657849500d41c1bedbf3de68c8814d304ed"
+    },
+    {
+      "path": "source/display-1.3.34/include/Truth.h",
+      "bytes": 2073,
+      "sha256": "f0617967660aa873862cf93d78a57bafacf731bd5265753393238d11d87141fb"
+    },
+    {
+      "path": "source/display-1.3.34/include/WidgetCache.h",
+      "bytes": 1063,
+      "sha256": "c0563926acb948c0a8d657b0feadf97951ac80822e8b9ca3693e07592ce41ed4"
+    },
+    {
+      "path": "source/display-1.3.34/include/WifiRecovery.h",
+      "bytes": 529,
+      "sha256": "3eecc6bd5eb375dec4dfb7a3ea0ca8098fd988244d64b53c68a8b3b5de447829"
+    },
+    {
+      "path": "source/display-1.3.34/include/Wireless.h",
+      "bytes": 389,
+      "sha256": "1fcf48621a2fa30320302d0a431601582bcf502257b87db39a778b7ce6e68415"
+    },
+    {
+      "path": "source/display-1.3.34/include/WirelessPolicy.h",
+      "bytes": 777,
+      "sha256": "2303edb397bd27bef9e9363196d5b72a6098db95385419702b1d2c60efeca0ca"
+    },
+    {
+      "path": "source/display-1.3.34/manifest.json",
+      "bytes": 357,
+      "sha256": "849cabe187a135889907720a6426669c46141c3139f4336c669ec9a1ce71a339"
+    },
+    {
+      "path": "source/display-1.3.34/platformio.ini",
+      "bytes": 1169,
+      "sha256": "cc1c978e7ce62e0368fc56b5885dade9f08e8719e5b3269acae63bf6f9d1a2bc"
+    },
+    {
+      "path": "source/display-1.3.34/src/Audio.cpp",
+      "bytes": 2749,
+      "sha256": "e0460539072e8d01dcaa4b9b62025f00cbcb480873d114f0653037d56fb34442"
+    },
+    {
+      "path": "source/display-1.3.34/src/main.cpp",
+      "bytes": 104047,
+      "sha256": "7a35e9ca677d7e5e2ff55615e9b3fb80d2003f6d7cdf60feac9a6ce4134fb955"
+    },
+    {
+      "path": "source/display-1.3.34/src/Storage.cpp",
+      "bytes": 14714,
+      "sha256": "8e773cd97b4fc33db31f37efa1effa7d43db4c53e4cebc139b033d1e0fb6674c"
+    },
+    {
+      "path": "source/display-1.3.34/src/Wireless.cpp",
+      "bytes": 8171,
+      "sha256": "df4c0781c87a776d09b3ebc6ffe2e1924ff28729a8d3d6f0165f118df9e90405"
+    },
+    {
+      "path": "source/display-1.3.34/test/ai_ui_state.cpp",
+      "bytes": 687,
+      "sha256": "f1f30663d0a2c434a3de4dc3625c4ad515776ee2f974c20e076c2fa5f8c4d80e"
+    },
+    {
+      "path": "source/display-1.3.34/test/appearance_palette.cpp",
+      "bytes": 722,
+      "sha256": "cbe4cb698a66d69b43e3e0c4c1ae864ecb32e80208634022e6c92dbd20acaf62"
+    },
+    {
+      "path": "source/display-1.3.34/test/browser_phone.cpp",
+      "bytes": 1411,
+      "sha256": "b674164f0a66c9b0096c4a02963fb4c1b1d094289b2759665541cf94c2584f8d"
+    },
+    {
+      "path": "source/display-1.3.34/test/buffered_json.cpp",
+      "bytes": 1548,
+      "sha256": "083838b35ef006ab04ee6c7e208b4a2ee29d5715035b8bbe193c139569b3ff15"
+    },
+    {
+      "path": "source/display-1.3.34/test/desktop_codec.cpp",
+      "bytes": 1228,
+      "sha256": "fba515e95d65a306c8ec2fe36a24ce7bb10737668cf8c5f27aeb216291640201"
+    },
+    {
+      "path": "source/display-1.3.34/test/desktop_controls.cpp",
+      "bytes": 525,
+      "sha256": "4609c6a1a49b49e652795a860fce52ba8e6b86ab4469af789af5439576a316d7"
+    },
+    {
+      "path": "source/display-1.3.34/test/desktop_geometry.cpp",
+      "bytes": 725,
+      "sha256": "f8366d146add9b98042b2f9d6a2282bef7b088dcc1e70ea9ec2570234dc54d1a"
+    },
+    {
+      "path": "source/display-1.3.34/test/display_battery.cpp",
+      "bytes": 871,
+      "sha256": "a9ed3e52068381f4a73d84f5dfbda70d6b4c4c0f9c134c7618bf07f7906af91f"
+    },
+    {
+      "path": "source/display-1.3.34/test/display_telemetry.cpp",
+      "bytes": 5113,
+      "sha256": "66252df23fd4cb89bdc616f187d4e7be99e0c4ab58ebf99b0aeb0cf98d37ba3b"
+    },
+    {
+      "path": "source/display-1.3.34/test/drone_position.cpp",
+      "bytes": 694,
+      "sha256": "9b4e99881a55cd85ff109bfb33d220ea0a34e704d815de48c004277d024524dc"
+    },
+    {
+      "path": "source/display-1.3.34/test/fault_cases.cpp",
+      "bytes": 2063,
+      "sha256": "357531a8483dedac5e76770d3b7a43130670270409a06f875ba9b93bd998fcf3"
+    },
+    {
+      "path": "source/display-1.3.34/test/gesture.cpp",
+      "bytes": 1653,
+      "sha256": "bbc54e5b7cc68903b58916fc98e67350490ff5118bd178b4ccf54aefb0618f5c"
+    },
+    {
+      "path": "source/display-1.3.34/test/integrity_matrix.cpp",
+      "bytes": 3832,
+      "sha256": "8bb21f4161aec8d597ffd7876167e914692a5520f10bfbe2b944bd0c2f7cb7a6"
+    },
+    {
+      "path": "source/display-1.3.34/test/keyboard.cpp",
+      "bytes": 784,
+      "sha256": "18eeace40c1f1e775e6a99f443a4fb1b6503a57ceb6c41dd176ecf64b8f8baaa"
+    },
+    {
+      "path": "source/display-1.3.34/test/light_pattern.cpp",
+      "bytes": 1764,
+      "sha256": "08acd5588cef18b75dded832f6d4f9d0aa74ae2d97f14d04e0ef51d1dc35292c"
+    },
+    {
+      "path": "source/display-1.3.34/test/link_fault_policy.cpp",
+      "bytes": 1031,
+      "sha256": "b268a6c5d76d77a25a837ba0c9be4e7403fe7609c7647da4d2e526f58a52b677"
+    },
+    {
+      "path": "source/display-1.3.34/test/maintenance.cpp",
+      "bytes": 705,
+      "sha256": "2dccc32727b63785ec40b563b3197a4ec96e643404c6d7d9c1ce5805c3c15a13"
+    },
+    {
+      "path": "source/display-1.3.34/test/orientation.cpp",
+      "bytes": 2541,
+      "sha256": "5211a18d00b83e1b8ebc1f25cb83d6756e07c4343ee4b76c45624a89a3c503c9"
+    },
+    {
+      "path": "source/display-1.3.34/test/owner_lease.cpp",
+      "bytes": 920,
+      "sha256": "334b05222f35db096c96e984505138a744b9bf0f6c4aedeaf4ec0f8c97a8f833"
+    },
+    {
+      "path": "source/display-1.3.34/test/phone_location.cpp",
+      "bytes": 1253,
+      "sha256": "718fa82bc8594730c94e6bd5137bb7a34b3a59165d58e92cdff2992e896d5fb3"
+    },
+    {
+      "path": "source/display-1.3.34/test/pinned_connection.cpp",
+      "bytes": 749,
+      "sha256": "8979502deeab69546ba1cdca9011f4cb2aa314710d87be9f51753d94f84e8cc7"
+    },
+    {
+      "path": "source/display-1.3.34/test/power.cpp",
+      "bytes": 1798,
+      "sha256": "a67bcfe3baf9e27200189413a82fd7f695ab5c872a8df415b287bc6ef334b4dc"
+    },
+    {
+      "path": "source/display-1.3.34/test/quick_connect.cpp",
+      "bytes": 505,
+      "sha256": "f6a803fa4a00889444c4e98cd66a694d8d925c6c1aff923ee0b61b0610486186"
+    },
+    {
+      "path": "source/display-1.3.34/test/session_policy.cpp",
+      "bytes": 1108,
+      "sha256": "926d3c8624ecfb28c8187b782c87700c151885dfbcd63f1faa46eb8c7eac5986"
+    },
+    {
+      "path": "source/display-1.3.34/test/status_bar.cpp",
+      "bytes": 1296,
+      "sha256": "014946884d989453918d8d08e905591ef185f2b80fd5f69870347d9f3bee9983"
+    },
+    {
+      "path": "source/display-1.3.34/test/storage_format.cpp",
+      "bytes": 925,
+      "sha256": "0667890610eb5d9827cf2aa031fa23a49ac23c8fd38020b9c73085bd1b2253e3"
+    },
+    {
+      "path": "source/display-1.3.34/test/stubs/WiFiClientSecure.h",
+      "bytes": 585,
+      "sha256": "121758da48f9eaf76b8c0f81cb34f161a4794ca0ab921118680cb28b7d13a3d2"
+    },
+    {
+      "path": "source/display-1.3.34/test/telemetry_layout.cpp",
+      "bytes": 1015,
+      "sha256": "eb3343321333951e9bb6f9528aee980773ea499ce315089ba4ced229845ca882"
+    },
+    {
+      "path": "source/display-1.3.34/test/time_bootstrap.cpp",
+      "bytes": 1205,
+      "sha256": "ae456d7e3cf3e18d7c8245d1d64b26281ba5ab982180d2fe23ec599bbb7ab0df"
+    },
+    {
+      "path": "source/display-1.3.34/test/tls_memory_recovery.cpp",
+      "bytes": 590,
+      "sha256": "3520a4891202342f0c5b4202f3a619eb371091876b72789a8a6a6507076c02c5"
+    },
+    {
+      "path": "source/display-1.3.34/test/touch.cpp",
+      "bytes": 706,
+      "sha256": "5ebf4e058c5c15ebf845be34dc18facff5bb01ae914cb0fae77b23d252c19d6d"
+    },
+    {
+      "path": "source/display-1.3.34/test/truth-native",
+      "bytes": 16272,
+      "sha256": "5ff9a6ba3bdefca39861d1dc042b6d94f147dd4d065c8d6c99ee920ab678c316"
+    },
+    {
+      "path": "source/display-1.3.34/test/truth.cpp",
+      "bytes": 1198,
+      "sha256": "b4fcd49c5ccda0a1d69317ffc5953dfaa4cab172ac2f9489fbb42a76e996453e"
+    },
+    {
+      "path": "source/display-1.3.34/test/widget_cache.cpp",
+      "bytes": 462,
+      "sha256": "ff9f6b75ff54c008a7664e093ccc815cd8f8cb993b9ed9634d58583ed2c3ac7e"
+    },
+    {
+      "path": "source/display-1.3.34/test/wifi_recovery.cpp",
+      "bytes": 673,
+      "sha256": "3306f6012556226f8fee0c906191c75a7b62ee3ff1b37be459850b01e03645ae"
+    },
+    {
+      "path": "source/display-1.3.34/test/wireless.cpp",
+      "bytes": 969,
+      "sha256": "a3fe8fbf7291f96137678aae9cc5bdb7482bb44bcab7834888febba577e16f04"
+    },
+    {
+      "path": "source/flight_safety_monitor/analyze-latest.cmd",
+      "bytes": 224,
+      "sha256": "232cd6b2fd54d97baf7a8cad57f506bd9785fca875ca32acf478d3c0ba533191"
+    },
+    {
+      "path": "source/flight_safety_monitor/desktop_app.py",
+      "bytes": 21234,
+      "sha256": "982f805b6b0cc5234673cb5f0cee6b94678ab4993f0ebd81a00c5b6f8c90e211"
+    },
+    {
+      "path": "source/flight_safety_monitor/flight_guard.py",
+      "bytes": 70026,
+      "sha256": "0cb73f6664f545b80b68e996282330d35a006d76a84fc0afd62038e65e8ca43a"
+    },
+    {
+      "path": "source/flight_safety_monitor/README.md",
+      "bytes": 3978,
+      "sha256": "55ff8a8e5ad8e4fdf952a8e8b71e6ccd282c5fa689e18d456b446956ac901497"
+    },
+    {
+      "path": "source/flight_safety_monitor/run-monitor.cmd",
+      "bytes": 208,
+      "sha256": "2538db927f2e939c260154c49d51d34d481847182f2b4ff2232b31baa23aed53"
+    },
+    {
+      "path": "source/flight_safety_monitor/simulate_live_tuning.py",
+      "bytes": 4992,
+      "sha256": "18a275fc7de1561109e6e67d0f4e681b3202cc34a68effec196c5c00e3eaa42d"
+    },
+    {
+      "path": "source/flight_safety_monitor/test_guardrails.py",
+      "bytes": 8980,
+      "sha256": "2221a16600ce45b67b76d4bb83eca10fe3ec1c67cedc792364dce96b8681b137"
+    },
+    {
+      "path": "source/pi-boot-patch/armbian-hardware-optimization.powerloss-fixed",
+      "bytes": 19501,
+      "sha256": "f13df658b7a6ad912163634c858c1e3c2bfcd7d5c4963c0352d53d047d4ff360"
+    },
+    {
+      "path": "source/pi-boot-patch/axl-usb-storage-quirks.py",
+      "bytes": 3278,
+      "sha256": "82be73aeebc17e61b0e0c45c52b7d658378da9d91a94faa3336fe3b079a8179e"
+    },
+    {
+      "path": "source/pi-current-overlay/85-axl-esp32-no-hangup.rules",
+      "bytes": 182,
+      "sha256": "dfb0e81e9556c23c15efa12b8c8940cb5d2e3535b2a3949c0b76d818f540fc4a"
+    },
+    {
+      "path": "source/pi-current-overlay/battery_prediction_training.py",
+      "bytes": 23037,
+      "sha256": "4e754f849c966b937e3d3c0695f2f2bb809479381f8478da2fcfaa869d6f3185"
+    },
+    {
+      "path": "source/pi-current-overlay/battery_profile_store.py",
+      "bytes": 20253,
+      "sha256": "c32d7622360b575d347a1b8615a08b70b10e6a5bc2bbacdb5de119b1105861cc"
+    },
+    {
+      "path": "source/pi-current-overlay/browser_desktop.py",
+      "bytes": 6340,
+      "sha256": "4b8563d4bc531a9281c5d2b7814b965401c0c49eef20186bd5a2ab3285a292d5"
+    },
+    {
+      "path": "source/pi-current-overlay/dashboard_transport.py",
+      "bytes": 1836,
+      "sha256": "14b6fdf86c321fbe4c047af35531f23ed08263f51c9e276748b39c6121481b91"
+    },
+    {
+      "path": "source/pi-current-overlay/desktop_capture.py",
+      "bytes": 6042,
+      "sha256": "fc91bdc3a63029603c170c4024bcd67ab54b3243750833bb3ab38d76a1699c23"
+    },
+    {
+      "path": "source/pi-current-overlay/desktop_focus.py",
+      "bytes": 2514,
+      "sha256": "bfcda6efccf4f42d9d511681f183526b50d608789cfea2a8562546dc08eebf5e"
+    },
+    {
+      "path": "source/pi-current-overlay/desktop_workspace.py",
+      "bytes": 3123,
+      "sha256": "c3e4184ed05805cff76374189cbe640ad904a577a92cce8f9a67acd6086d7dee"
+    },
+    {
+      "path": "source/pi-current-overlay/display_telemetry.py",
+      "bytes": 24757,
+      "sha256": "60958d1d0c251f62b1c075a9afd958c8f3401ea23be508feda07faf9775a2fc1"
+    },
+    {
+      "path": "source/pi-current-overlay/display_transport.py",
+      "bytes": 10169,
+      "sha256": "87697adad44f46bee9550faa236a2341fefd09f41d5cbe09ce7200c31b1cf94b"
+    },
+    {
+      "path": "source/pi-current-overlay/environment_awareness.py",
+      "bytes": 10816,
+      "sha256": "3bbdb148cb9f909ac08f90d3296b45d46811b973a741e0d1c8631e0d952c6c0a"
+    },
+    {
+      "path": "source/pi-current-overlay/esp32_serial.py",
+      "bytes": 867,
+      "sha256": "14cd3417bf689d7720af97a97c08e87a0f81a1277c95ff92c6156d9167280647"
+    },
+    {
+      "path": "source/pi-current-overlay/field_setup.py",
+      "bytes": 12200,
+      "sha256": "f18d633a89e3960f3fb54c80201ba9321bda6876b7bbbb437b999d36bc5d49df"
+    },
+    {
+      "path": "source/pi-current-overlay/field_wifi.py",
+      "bytes": 11102,
+      "sha256": "9a33b7f620763c6c62b450e8568162fc69edfc00f1a01eafbda5b26ba47da913"
+    },
+    {
+      "path": "source/pi-current-overlay/fixtures/display-no-controller.json",
+      "bytes": 7757,
+      "sha256": "d17391c07a1251168ec7f28f2154e45c342a219e1143c7b99cd86a9536b99ca8"
+    },
+    {
+      "path": "source/pi-current-overlay/fixtures/display-worst-case.json",
+      "bytes": 12104,
+      "sha256": "3a1e4813c7a32e858aeb3db92f5fe5bc10c5d1dd4634a50940479b4942b1a543"
+    },
+    {
+      "path": "source/pi-current-overlay/flight_efficiency_metrics.py",
+      "bytes": 6043,
+      "sha256": "a55e0182b0962848c3fdae7789d17cb815c9b28209295499a70ee7df589f1be6"
+    },
+    {
+      "path": "source/pi-current-overlay/follow_location.py",
+      "bytes": 3677,
+      "sha256": "5e8d4be37fc3addbeac28a9a255e899191f94a2404d648bafa364a627e186b5a"
+    },
+    {
+      "path": "source/pi-current-overlay/model_profile_control.py",
+      "bytes": 3055,
+      "sha256": "9932f9e173f216f8fa07136d12087f783132272c9f04f78886999f63958ae996"
+    },
+    {
+      "path": "source/pi-current-overlay/orangepi-companion",
+      "bytes": 117611,
+      "sha256": "a321a9e8969cb234a28b5c8066048696e3a3b6a07821e45dd61120af747e7aed"
+    },
+    {
+      "path": "source/pi-current-overlay/orangepi-touch-desktop",
+      "bytes": 6667,
+      "sha256": "0a8d28b925b5e9db2158270bcbdc7f8c7b245a0b31bb6fc9b89f9262cfaa23e3"
+    },
+    {
+      "path": "source/pi-current-overlay/orangepi-wifi-control",
+      "bytes": 13796,
+      "sha256": "b22523257ac639ced6342fd4c9c2ee48de161341802ea8511575caaffcda3f39"
+    },
+    {
+      "path": "source/pi-current-overlay/phone_browser.py",
+      "bytes": 9840,
+      "sha256": "f8049cf1d73aa09652ec088c2f464f1a084ddcd4bee694043973dc9191d22471"
+    },
+    {
+      "path": "source/pi-current-overlay/prepare-flight-training-data.py",
+      "bytes": 14715,
+      "sha256": "d65b46233ad77aa67366ec7dacdc7c92f759e1fdc664a35152e803a16400ab17"
+    },
+    {
+      "path": "source/pi-current-overlay/quick_connect.py",
+      "bytes": 3588,
+      "sha256": "600f9f9df93680b76bdf27752f2564afadfa29fdfb0b732f5467db086226570e"
+    },
+    {
+      "path": "source/pi-current-overlay/qwen_adapter_worker.py",
+      "bytes": 18516,
+      "sha256": "83586525d8037dbb3c5b08eadadd3237e5b29b3feabed66b69122cc450542741"
+    },
+    {
+      "path": "source/pi-current-overlay/test_browser_desktop.py",
+      "bytes": 5363,
+      "sha256": "91fed3f6a3eb11a61ffcaacd93e6a41e8b01694081c0bd771356908ab0ea33ec"
+    },
+    {
+      "path": "source/pi-current-overlay/test_desktop_access.py",
+      "bytes": 2295,
+      "sha256": "228b5df91a7fc4d6d99f2a3d6a76218c43d4e7a1f6c3d344a5b2ee016c7cbd26"
+    },
+    {
+      "path": "source/pi-current-overlay/test_desktop_changes.py",
+      "bytes": 1870,
+      "sha256": "7769b02790ac91705fd221b0f2b2fd3e5fd9720478049bc4b727bd09d653adef"
+    },
+    {
+      "path": "source/pi-current-overlay/test_desktop_focus.py",
+      "bytes": 1395,
+      "sha256": "43fab1eeafcb1f488872049d6add964f6b76fa18ab7175e5e51b3632a058845c"
+    },
+    {
+      "path": "source/pi-current-overlay/test_desktop_workspace.py",
+      "bytes": 1812,
+      "sha256": "96fe6cc2fc006b7e2a9939d9d94705ef230d5217ca979e96ee6d9895ca4b570d"
+    },
+    {
+      "path": "source/pi-current-overlay/test_display_status_reply.py",
+      "bytes": 3744,
+      "sha256": "be2dd41b76e07bf7e3b17ff1df79199033d7a8b0ac4937cebad0f5aa7e628796"
+    },
+    {
+      "path": "source/pi-current-overlay/test_display_telemetry.py",
+      "bytes": 10666,
+      "sha256": "770ac39d0c4eae773b00c751f334a77eeb4b01d64b189cb520e8cebd3b3fc153"
+    },
+    {
+      "path": "source/pi-current-overlay/test_display_transport.py",
+      "bytes": 4083,
+      "sha256": "6bf0023b6913197daf7b2ef4f4a6031575c5d88c2d5060afc60fd8f8a3dc0bb1"
+    },
+    {
+      "path": "source/pi-current-overlay/test_field_setup.py",
+      "bytes": 13076,
+      "sha256": "10ed7cb34e25303d3d070520203e39ce46467cd82ad06da57b6661c5ea843189"
+    },
+    {
+      "path": "source/pi-current-overlay/test_follow_location.py",
+      "bytes": 2692,
+      "sha256": "72155383cb3dd21a3652fc7826a858de62a9a6e75ea34786874182570d11d080"
+    },
+    {
+      "path": "source/pi-current-overlay/test_pairing_route.py",
+      "bytes": 2404,
+      "sha256": "291c943d4dce3567730117e0a1331dab0da07b9809ee602b29adf940f57b1d66"
+    },
+    {
+      "path": "source/pi-current-overlay/test_phone_browser.py",
+      "bytes": 4602,
+      "sha256": "697311379d256cfc6acec7f26fb75235aa0027ee53e83d80b4ee6eefb833007f"
+    },
+    {
+      "path": "source/pi-current-overlay/test_policy_and_tls.py",
+      "bytes": 6884,
+      "sha256": "b205a0677cd2bf65406d4f9cc1c8a9ef8e40b675fbb41e14ab0a326ffc8453a0"
+    },
+    {
+      "path": "source/pi-current-overlay/test_quick_connect.py",
+      "bytes": 1872,
+      "sha256": "63e27c590f607e8335d002082db08ee484f803b3b9b7399339dd18e8b6cca950"
+    },
+    {
+      "path": "source/pi-current-overlay/test_wifi_disconnect.py",
+      "bytes": 1602,
+      "sha256": "d1fb828287d61cfb609ceefb466a03f8185d552223afd54477ace004295ccbbf"
+    },
+    {
+      "path": "source/pi-current-overlay/weight_training_core.py",
+      "bytes": 11245,
+      "sha256": "b6cf1dc95c2a85c891eda103cab4dca450ff7fbf78c379dc01e1d9fc3e82d45e"
+    },
+    {
+      "path": "source/pi-current-overlay/wifi_snapshot.py",
+      "bytes": 1150,
+      "sha256": "85346bf45b527285d2d17526fa280c1b704ffad8b36aa18550662f8d59013707"
+    },
+    {
+      "path": "source/pi-service-layout/etc/nftables.d/orangepi-direct-link.nft",
+      "bytes": 782,
+      "sha256": "407dd2685812a6f25e5962ec1cb06dae6278c1d8b51e297765a1c83d6dd458e5"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/bluetooth.service.d/10-directory-mode.conf",
+      "bytes": 202,
+      "sha256": "2942f2d176ea5abf0302bbf320101218adbc385aa19751314b64a4895a54136d"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/orangepi-approved-update-request.service",
+      "bytes": 289,
+      "sha256": "4830a9abfb5d03edeb6880ae09da6cd20cd3c72fc6feee3da2405e632d3e71a0"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/orangepi-direct-dhcp.service",
+      "bytes": 344,
+      "sha256": "4feed773c39d9195ba3a8977086e3435b7ddf8250908dde977c9999c0d9aed6c"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/orangepi-direct-firewall.service",
+      "bytes": 341,
+      "sha256": "92482079f513109573f8d242b9b803e85abbc180e7c2feac39310c6ec311ff25"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/orangepi-direct-link.service",
+      "bytes": 431,
+      "sha256": "48d6c326b2e4cf4cc59718b247d6f7f54fad5bbaa56d14ef2cd2b6ace0a8b752"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/orangepi-home-maintenance.service",
+      "bytes": 320,
+      "sha256": "776c2026d45edb6195a43bb13020c723f830058eb515c8dc066a3146e0903f3e"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/orangepi-home-maintenance.timer",
+      "bytes": 236,
+      "sha256": "cfd15382ae5ed704668c0607849cca71e99733dbfbca18b34cd969d991b09260"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/orangepi-usb-gadget.service",
+      "bytes": 390,
+      "sha256": "18df59727b0554ee4c9ad3eeab3f920056a82f4b5ecc2dddeeb4bbd468aa16d4"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/orangepi-usb-gadget.service.d/30-management-controller.conf",
+      "bytes": 128,
+      "sha256": "f3291dbf9aa3bc78fc3acbf8b9c668569dcd3f605e94dd45f6876c44e267a4bb"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/orangepi-usb-gadget.service.d/40-native-autoselect.conf",
+      "bytes": 60,
+      "sha256": "27e4dc886a54ece8deccd1a67e90e28d2cc7eb4b225c11905c9c0769fd754014"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/orangepi-wifi-control.socket",
+      "bytes": 229,
+      "sha256": "290fdb4c829780b241fb5e6a840d58e706e86815e84d8db56e6f161b310507a6"
+    },
+    {
+      "path": "source/pi-service-layout/etc/systemd/system/orangepi-wifi-control@.service",
+      "bytes": 758,
+      "sha256": "99aeca2c7fe04ff2055659aade1be4cd778a926efe0ae5b99ba73e5e0239ada1"
+    },
+    {
+      "path": "source/pi-service-layout/home/drone/.config/systemd/user/orangepi-companion.service",
+      "bytes": 763,
+      "sha256": "0181bedbd245059d2865c388879a784f7b090751b2784b57cdf1f02d014242d1"
+    },
+    {
+      "path": "source/pi-service-layout/home/drone/.config/systemd/user/orangepi-companion.service.d/40-reviewed-advisory-policy.conf",
+      "bytes": 257,
+      "sha256": "4dbf4fb9bebfb6c4e3835ffa344a3a2c2d6bc8693d266d7f21f3b9f389ff6d49"
+    },
+    {
+      "path": "source/pi-service-layout/home/drone/.config/systemd/user/orangepi-companion.service.d/50-battery-history.conf",
+      "bytes": 142,
+      "sha256": "266085623d6fffbc62d3247532bb20bed86392ba546d64ba3989c5a4a0a56e04"
+    },
+    {
+      "path": "source/pi-service-layout/usr/local/bin/orangepi-mavlink-monitor",
+      "bytes": 28692,
+      "sha256": "b32ae2fb42de07f8a816e30b5620cfb1dafd44433e8e10bf391a1e520773f9dd"
+    },
+    {
+      "path": "source/pi-service-layout/usr/local/sbin/dfrobot-sen0628-firmware-update",
+      "bytes": 1570,
+      "sha256": "21b9586812a5ca7945e0dd1ccbec6f4f65f2dec2475df6a27fe814ac96b26ab5"
+    },
+    {
+      "path": "source/pi-service-layout/usr/local/sbin/orangepi-direct-firewall",
+      "bytes": 390,
+      "sha256": "193477c3128804e472ebddebeb8c7b2f5175baf886a8aa7fafcc7f64b90793d0"
+    },
+    {
+      "path": "source/pi-service-layout/usr/local/sbin/orangepi-direct-link",
+      "bytes": 510,
+      "sha256": "823d3be7743451f7e5f26198aea83c34832bf284d356e5a5a57ea464ed45fd09"
+    },
+    {
+      "path": "source/pi-service-layout/usr/local/sbin/orangepi-home-maintenance",
+      "bytes": 9378,
+      "sha256": "35297ac1ef2745657051888a191b4ff70ed6ab1dfdabb94e60914c5b1a47081f"
+    },
+    {
+      "path": "source/pi-service-layout/usr/local/sbin/orangepi-usb-gadget",
+      "bytes": 12386,
+      "sha256": "ca52ee87264811bc50b36226ebbade911badcb730ab09e265116dfa9494cde8c"
+    },
+    {
+      "path": "source/pi-service-layout/usr/local/sbin/orangepi-wifi-control",
+      "bytes": 12092,
+      "sha256": "e0fe962ca3a4ffdd91951cfd93e10bf09132e529ddf46d13deb6abd0b7c00955"
+    },
+    {
+      "path": "source/pi-supporting-source/companion-field/app.css",
+      "bytes": 4161,
+      "sha256": "0142ff38f0e4a115bb1cecbe319a51af08b42d031a4b08d371b1c2c332b62cc6"
+    },
+    {
+      "path": "source/pi-supporting-source/companion-field/app.html",
+      "bytes": 9820,
+      "sha256": "37f938df54144974602d211c07f828285703f038261d38b8550198a544bfd733"
+    },
+    {
+      "path": "source/pi-supporting-source/companion-field/app.js",
+      "bytes": 13238,
+      "sha256": "9d145396f671ea93307dfdb0dd3af461420dfffe0a26f0cd1c6425cb02e29252"
+    },
+    {
+      "path": "source/pi-supporting-source/companion-field/desktop.js",
+      "bytes": 5950,
+      "sha256": "ed436a40aa97b61ec6ab0d9ccf6817590cfbea38e6a2ee42b4bc698380956145"
+    },
+    {
+      "path": "source/pi-supporting-source/companion-field/field.css",
+      "bytes": 4157,
+      "sha256": "b70ea20f1c1ed82675c62926599ed51eb51e178c6109f98984e8c8e86f1ee266"
+    },
+    {
+      "path": "source/pi-supporting-source/companion-field/field.js",
+      "bytes": 13238,
+      "sha256": "9d145396f671ea93307dfdb0dd3af461420dfffe0a26f0cd1c6425cb02e29252"
+    },
+    {
+      "path": "source/pi-supporting-source/companion-field/icon.svg",
+      "bytes": 283,
+      "sha256": "b2d59b3c86bf02b868a44abe7c0a93be716e9418e219f45433de10376b99247b"
+    },
+    {
+      "path": "source/pi-supporting-source/companion-field/index.html",
+      "bytes": 9867,
+      "sha256": "3c68a99b50a8c91c3d39d898891c0623e8c3b60609eb531b359932fdbe575c28"
+    },
+    {
+      "path": "source/pi-supporting-source/companion-field/manifest.webmanifest",
+      "bytes": 243,
+      "sha256": "6de648b6e97c16dbb59ed7bd130d90487ed82f1735e79d2b2a222263e1520cf3"
+    },
+    {
+      "path": "source/pi-supporting-source/companion-field/sw.js",
+      "bytes": 761,
+      "sha256": "2589b147392e6b3b68a201ebcadaa81f23731e1f87fbeefc1c0d2ee120efec47"
+    },
+    {
+      "path": "source/pi-supporting-source/h743-usb-candidate/display_telemetry.py",
+      "bytes": 23717,
+      "sha256": "2f7cad08ba96e8bde04d570f49b5c10e9558e09ec11ce492798cdb53911dc556"
+    },
+    {
+      "path": "source/pi-supporting-source/h743-usb-candidate/orangepi-mavlink-monitor",
+      "bytes": 30481,
+      "sha256": "5d2b17b71e38521afc6940c27ec458093fd905863569344c7ee50b77a42ac464"
+    },
+    {
+      "path": "source/pi-supporting-source/h743-usb-candidate/pc-h743-input.py",
+      "bytes": 1940,
+      "sha256": "af4912423056bb0ae97b36c2f498bc3e8252417d385646cb88cd215e4da5661a"
+    },
+    {
+      "path": "source/pi-supporting-source/h743-usb-candidate/pc_bridge_frame.py",
+      "bytes": 1070,
+      "sha256": "019608185d1a308807f0f9db84c6344c3559ad6be8012806ed32800d9cf8d18f"
+    },
+    {
+      "path": "source/pi-supporting-source/projected-app/app.js",
+      "bytes": 63857,
+      "sha256": "e3e46945fbb495bf31e7324beaafe495a71646ed350413e660ae8b3e2d154191"
+    },
+    {
+      "path": "source/pi-supporting-source/projected-app/auth.css",
+      "bytes": 53,
+      "sha256": "289a464463e90041e5db864b0733c69d6dc2ef6e52e3de7dc592cb40d64511da"
+    },
+    {
+      "path": "source/pi-supporting-source/projected-app/index.html",
+      "bytes": 29308,
+      "sha256": "38a8137a8ebd11b75c54cabfe512a786efdd875dc872ccde877d223554f6cdc2"
+    },
+    {
+      "path": "source/pi-supporting-source/projected-app/orangepi-ai-launcher",
+      "bytes": 7292,
+      "sha256": "4907847db0c6f107272db9af94f7a6f48588baf85554b007e62b9aad73c5c018"
+    },
+    {
+      "path": "source/pi-supporting-source/projected-app/service-worker.js",
+      "bytes": 1290,
+      "sha256": "ec741f88d0d476cf51c44c37702eb2dd369a432777b1f50da822e570111ab5ae"
+    },
+    {
+      "path": "source/pi-supporting-source/projected-app/style.css",
+      "bytes": 33455,
+      "sha256": "a78a87bfabf927259c079a16ce4927e4cccc4804919f3c7ee4c02d8a462ca5f9"
+    },
+    {
+      "path": "source/pi-supporting-source/tools/display_status_io.py",
+      "bytes": 1333,
+      "sha256": "f58263806f967cac13c6a105ece4bb26b2c158d4285de25c77cc429d07ceec4f"
+    },
+    {
+      "path": "source/pi-supporting-source/tools/pc-h743-bridge.py",
+      "bytes": 3858,
+      "sha256": "96ae56206f58f3f172be47fab69913b663eea7c65d5f9927c019ece442255b9d"
+    },
+    {
+      "path": "source/pi-supporting-source/tools/test-desktop-encoding.py",
+      "bytes": 730,
+      "sha256": "9889cd06d25cd6791fb7629a6f5db7c00389f620e8cf67435919272f90fe72b4"
+    },
+    {
+      "path": "source/pi-supporting-source/tools/test-display-recovery.py",
+      "bytes": 2417,
+      "sha256": "b367558962e156067d6cbe6f4b8ede8ceddc3def81c33690e5064d6fcdae87d9"
+    },
+    {
+      "path": "source/uwb_follow_sim/compare_previous.py",
+      "bytes": 1977,
+      "sha256": "c4d97885923b2fcfa3c4d6bcd4d54d8ec8f7f98b22bc1a30c78039d78589b02f"
+    },
+    {
+      "path": "source/uwb_follow_sim/desk_model.py",
+      "bytes": 10452,
+      "sha256": "dcb6f469040e219b3593736b3f92c3e7f717e0485ccdc64d6be9d9329f5d646c"
+    },
+    {
+      "path": "source/uwb_follow_sim/make_report.py",
+      "bytes": 11011,
+      "sha256": "a7caeaac2c6ae1d7948d476367f59d1bcdb25a24c916dbc95cfc84a62d67047f"
+    },
+    {
+      "path": "source/uwb_follow_sim/README.md",
+      "bytes": 7941,
+      "sha256": "f9eb31915cfbe6e99976f6ce73ebe2efbab7d48a8f5fee33eb4322b97839cfb0"
+    },
+    {
+      "path": "source/uwb_follow_sim/run_scenarios.py",
+      "bytes": 5660,
+      "sha256": "44998965385c69443c3b00d45a0cf900d9b748da944d42f98824c32306023660"
+    },
+    {
+      "path": "source/uwb_follow_sim/test_desk_model.py",
+      "bytes": 7502,
+      "sha256": "cc3beb8c08925e109fb2f777098d0f1e3c37326bd74c5a9acd0172f6e7095322"
+    },
+    {
+      "path": "source/uwb_follow_sim/test_uwb_follow.py",
+      "bytes": 10858,
+      "sha256": "49c89528f8f818074ec04000c5801c3f523ebd1ccf454ed265441fec85fb607a"
+    },
+    {
+      "path": "source/uwb_follow_sim/uwb_follow.py",
+      "bytes": 11625,
+      "sha256": "061ee7bba0f11be14c8b8c1cf19cd99955a1f1429b02e2dc9097ccfd124b21cc"
+    },
+    {
+      "path": "source/uwb_follow_sim/verify_build.py",
+      "bytes": 1885,
+      "sha256": "0ef50a40724c2d8c0bdd821ab48c6cf387b03ceb98adb811e338627950e7aa44"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+#!/bin/sh
+# Install the staged official DFRobot SEN0628 V1.3 UF2 on an RP2040 boot drive.
+set -eu
+
+firmware=/usr/local/share/dfrobot-matrix-lidar/firmware/SEN0628-V1.3-20250904.uf2
+expected=1630ed12fab4bb2e543fd43f7aa6fad44c588f275a7f8b225d34b78e9f2f0f4c
+mount_dir=/run/dfrobot-sen0628-rp2
+
+if [ "${1:-}" != "--yes-sen0628" ]; then
+    echo "Refusing to flash without --yes-sen0628." >&2
+    echo "Connect only the SEN0628 while holding its BOOT button, then retry." >&2
+    exit 2
+fi
+
+actual=$(sha256sum "$firmware" | awk '{print $1}')
+if [ "$actual" != "$expected" ]; then
+    echo "Firmware checksum mismatch; nothing was written." >&2
+    exit 3
+fi
+
+devices=$(lsblk -rpno NAME,LABEL,FSTYPE,TYPE | awk '$2 == "RPI-RP2" && $3 == "vfat" && $4 == "part" {print $1}')
+count=$(printf '%s\n' "$devices" | sed '/^$/d' | wc -l)
+if [ "$count" -ne 1 ]; then
+    echo "Expected exactly one RPI-RP2 boot drive; found $count. Nothing was written." >&2
+    exit 4
+fi
+device=$(printf '%s\n' "$devices")
+
+mkdir -p "$mount_dir"
+cleanup() {
+    if mountpoint -q "$mount_dir"; then
+        umount "$mount_dir" || true
+    fi
+}
+trap cleanup EXIT INT TERM
+mount -o rw,nosuid,nodev,noexec "$device" "$mount_dir"
+
+if ! grep -Eqi 'RP2040|RPI-RP2' "$mount_dir/INFO_UF2.TXT"; then
+    echo "Mounted drive did not identify as an RP2040 bootloader; nothing was written." >&2
+    exit 5
+fi
+
+echo "Writing official DFRobot SEN0628 firmware V1.3..."
+cp "$firmware" "$mount_dir/SEN0628-V1.3-20250904.uf2"
+sync
+sleep 2
+echo "Firmware copy completed. The sensor should reboot and leave RPI-RP2 mode."

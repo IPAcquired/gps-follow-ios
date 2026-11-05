@@ -1,0 +1,13 @@
+[Unit]
+Description=Isolation firewall for the Orange Pi private direct link
+After=orangepi-direct-link.service
+Before=orangepi-direct-dhcp.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/orangepi-direct-firewall start
+ExecStop=/usr/local/sbin/orangepi-direct-firewall stop
+
+[Install]
+WantedBy=multi-user.target

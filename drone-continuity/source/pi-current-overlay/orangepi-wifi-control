@@ -1,0 +1,249 @@
+#!/usr/bin/python3
+"""Root-owned, socket-activated Wi-Fi-only companion helper (no shell)."""
+from __future__ import annotations
+import fcntl
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import re
+import socket
+import stat
+import struct
+import subprocess
+import tempfile
+import time
+import yaml
+
+CONFIG = Path('/etc/netplan/30-wifis-dhcp.yaml')
+STATE = Path('/var/lib/orangepi-wifi')
+RUNTIME = Path('/run/orangepi-wifi')
+
+def validate_ssid(value):
+    if not isinstance(value, str) or not 1 <= len(value.encode('utf-8')) <= 32 or any(ord(c) < 32 or ord(c) == 127 for c in value):
+        raise ValueError('Network name must contain 1–32 UTF-8 bytes without control characters.')
+    return value
+
+def validate_password(value):
+    if not isinstance(value, str) or not 8 <= len(value) <= 63 or any(not 32 <= ord(c) <= 126 for c in value):
+        raise ValueError('WPA2 password must contain 8–63 printable ASCII characters.')
+    return value
+
+def decode_ssid(value):
+    # wpa control output escapes non-ASCII bytes, tabs and backslashes.
+    out = bytearray(); index = 0
+    escapes = {'n': 10, 'r': 13, 't': 9, 'e': 27, '\\': 92, '"': 34}
+    while index < len(value):
+        if value[index] == '\\' and index + 1 < len(value):
+            if value[index+1] == 'x' and re.fullmatch('[0-9a-fA-F]{2}', value[index+2:index+4]):
+                out.append(int(value[index+2:index+4], 16)); index += 4; continue
+            if value[index+1] in escapes:
+                out.append(escapes[value[index+1]]); index += 2; continue
+        out.extend(value[index].encode('utf-8')); index += 1
+    return out.decode('utf-8', errors='replace')
+
+def flight_guard():
+    if any(Path(p).exists() for p in ('/run/orangepi-flight-active', '/run/orangepi-maintenance-active', '/dev/h743', '/dev/rfcomm0', '/dev/serial/by-id/usb-ArduPilot')):
+        raise ValueError('Wi-Fi changes paused: flight hardware/session or maintenance is active.')
+    if any(Path('/dev/serial/by-id').glob('*Ardu*')) or any(Path('/dev/serial/by-id').glob('*H743*')):
+        raise ValueError('Disconnect the flight controller before changing Wi-Fi.')
+    router = subprocess.run(['/usr/bin/systemctl', 'is-active', '--quiet', 'mavlink-router.service'], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3)
+    if router.returncode == 0: raise ValueError('Disconnect the flight link before maintenance/review changes.')
+    try:
+        data = json.loads(Path('/run/orangepi-mavlink/status.json').read_text())
+        updated = data.get('updated_unix') if isinstance(data, dict) else None
+        if (not isinstance(data, dict) or type(data.get('schema')) is not int or data.get('schema') != 1
+                or data.get('authority') != 'read_only_no_mavlink_transmit'
+                or data.get('armed') is not False or data.get('connected') is not False
+                or type(updated) not in (int, float) or not math.isfinite(updated)
+                or not 0 <= time.time() - updated <= 5):
+            raise ValueError('Fresh flight status does not establish a safe offline bench state.')
+    except (OSError, json.JSONDecodeError, TypeError):
+        raise ValueError('Flight status cannot be verified safely.') from None
+
+def load_config():
+    info = CONFIG.lstat()
+    if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o077:
+        raise ValueError('Wi-Fi configuration must be a private root-owned regular file.')
+    data = yaml.safe_load(CONFIG.read_text())
+    aps = data['network']['wifis']['wlan0']['access-points']
+    if not isinstance(aps, dict):
+        raise ValueError('Wi-Fi configuration is not supported.')
+    return data, aps
+
+def atomic_write(path, contents):
+    fd, name = tempfile.mkstemp(prefix='.wifi-', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'wb') as handle:
+            handle.write(contents); handle.flush(); os.fsync(handle.fileno())
+        os.chmod(name, 0o600); os.replace(name, path)
+        directory = os.open(path.parent, os.O_DIRECTORY)
+        try: os.fsync(directory)
+        finally: os.close(directory)
+    finally:
+        if os.path.exists(name): os.unlink(name)
+
+def netplan_generate(root=None):
+    argv = ['/usr/sbin/netplan', 'generate']
+    if root is not None: argv += ['--root-dir', str(root)]
+    result = subprocess.run(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=12)
+    if result.returncode:
+        # Netplan diagnostic output can contain the submitted password: never return/log it.
+        raise ValueError('Netplan validation failed; the previous configuration is preserved.')
+
+def save_profile(ssid, password):
+    flight_guard(); data, aps = load_config()
+    if ssid in aps:
+        raise ValueError('This network is already saved. Select it from Saved networks instead.')
+    if len(aps) >= 64: raise ValueError('Wi-Fi profile limit reached; ask the administrator to review saved networks.')
+    # Store a WPA2 derived PSK, not the plaintext passphrase. WPA3-only/enterprise are not supported.
+    psk = hashlib.pbkdf2_hmac('sha1', password.encode(), ssid.encode(), 4096, 32).hex()
+    aps[ssid] = {'password': psk}
+    contents = yaml.safe_dump(data, sort_keys=False, allow_unicode=True).encode()
+    with tempfile.TemporaryDirectory(prefix='validate-', dir=RUNTIME) as folder:
+        root = Path(folder)
+        for source_base in ('lib/netplan', 'etc/netplan', 'run/netplan'):
+            destination = root / source_base; destination.mkdir(parents=True, mode=0o700)
+            for source in Path('/' + source_base).glob('*.yaml'):
+                if source.is_symlink(): raise ValueError('Administrator review needed: symlinked Netplan configuration.')
+                atomic_write(destination / source.name, contents if source == CONFIG else source.read_bytes())
+        netplan_generate(root)
+    backup = STATE / ('profile-before-' + str(time.time_ns()) + '.yaml')
+    atomic_write(backup, CONFIG.read_bytes())
+    atomic_write(CONFIG, contents)
+    # Generation in a private directory above is validation only; no live network restart here.
+    return {'state': 'saved', 'detail': 'Network saved for reboot/reconnect. Current connection was not changed.'}
+
+def wpa(command):
+    allowed = {'STATUS', 'LIST_NETWORKS', 'SCAN', 'SCAN_RESULTS', 'RECONFIGURE', 'ENABLE_NETWORK all'}
+    if command not in allowed and not re.fullmatch(r'SELECT_NETWORK [0-9]{1,5}', command):
+        raise ValueError('Unsupported Wi-Fi operation.')
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    local = str(RUNTIME / ('wpa-' + os.urandom(8).hex()))
+    try:
+        client.settimeout(3); client.bind(local); os.chmod(local, 0o600)
+        client.connect('/run/wpa_supplicant/wlan0'); client.send(command.encode('ascii'))
+        return client.recv(65536).decode('utf-8', errors='replace').strip()
+    finally:
+        client.close()
+        if os.path.exists(local): os.unlink(local)
+
+def wpa_status():
+    fields = dict(line.split('=', 1) for line in wpa('STATUS').splitlines() if '=' in line)
+    return {'state': fields.get('wpa_state', 'UNKNOWN'), 'ssid': decode_ssid(fields.get('ssid', '')), 'ip': fields.get('ip_address', '')}
+
+def network_ids():
+    result = {}
+    for line in wpa('LIST_NETWORKS').splitlines()[1:]:
+        fields = line.split('\t')
+        if len(fields) >= 4 and fields[0].isdigit(): result[decode_ssid(fields[1])] = fields[0]
+    return result
+
+def connect_saved(ssid):
+    flight_guard(); _, aps = load_config()
+    if ssid not in aps: raise ValueError('Save this network before attempting a connection.')
+    previous = wpa_status()['ssid']
+    netplan_generate()
+    if wpa('RECONFIGURE') != 'OK': raise ValueError('Wi-Fi service did not accept its saved configuration.')
+    ids = network_ids()
+    if ssid not in ids: raise ValueError('Saved network was not loaded by the Wi-Fi service.')
+    success = False
+    try:
+        if wpa('SELECT_NETWORK ' + ids[ssid]) != 'OK': raise ValueError('Wi-Fi network selection was rejected.')
+        deadline = time.monotonic() + 25
+        while time.monotonic() < deadline:
+            current = wpa_status()
+            if current['state'] == 'COMPLETED' and current['ssid'] == ssid and current['ip']:
+                success = True
+                return {**current, 'state': 'connected', 'detail': 'Wi-Fi associated with an IP address.'}
+            time.sleep(1)
+    finally:
+        # SELECT disables other profiles: restore automatic reconnect/fallback even on errors.
+        try:
+            if not success and previous in ids: wpa('SELECT_NETWORK ' + ids[previous])
+        finally:
+            wpa('ENABLE_NETWORK all')
+    return {'state': 'failed', 'detail': 'Connection was not confirmed within 25 seconds. Previous network selection restored when available; automatic reconnect remains enabled.'}
+
+def update_policy_status():
+    try:
+        value = json.loads((STATE / 'update-policy.json').read_text())
+        enabled = value.get('schema') == 1 and value.get('enabled') is True
+    except (OSError, ValueError, TypeError):
+        enabled = False
+    return {'enabled': enabled, 'home_ssid': 'Home Full of Beans',
+            'scope': 'debian_security_userspace', 'drivers_require_review': True,
+            'ai_runtime_updates': 'inventory_and_review_only',
+            'model_weight_promotion': False, 'automatic_reboot': False,
+            'applies_to': 'future_checks'}
+
+
+def dispatch(incoming):
+    if not isinstance(incoming, dict): raise ValueError('Expected a JSON object.')
+    action = incoming.get('action')
+    permitted = {'status': {'action'}, 'scan': {'action'}, 'save': {'action', 'ssid', 'password'}, 'connect': {'action', 'ssid'}, 'updates': {'action'}, 'bench': {'action'}, 'update_policy_status': {'action'}, 'update_policy': {'action', 'enabled'}}
+    if action not in permitted or set(incoming) != permitted[action]: raise ValueError('Unsupported Wi-Fi request.')
+    if action == 'update_policy_status':
+        return update_policy_status()
+    if action == 'update_policy':
+        if type(incoming['enabled']) is not bool:
+            raise ValueError('Automatic update selection must be true or false.')
+        # This only changes future scheduling; execution retains all flight guards.
+        atomic_write(STATE / 'update-policy.json', json.dumps({'schema': 1, 'enabled': incoming['enabled']}, separators=(',', ':')).encode())
+        return update_policy_status()
+    if action == 'status':
+        _, aps = load_config()
+        try: current = wpa_status()
+        except OSError: current = {'state': 'UNAVAILABLE', 'ssid': '', 'ip': ''}
+        try:
+            signal = dict(line.split('=', 1) for line in wpa('SIGNAL_POLL').splitlines() if '=' in line)
+            rssi = int(signal.get('RSSI', ''))
+            if -120 <= rssi < 0:
+                current['rssi_dbm'] = rssi
+        except (OSError, ValueError):
+            pass
+        return {'current': current, 'saved': sorted(aps), 'usb_address': '192.168.77.2', 'direct_address': '10.42.0.1', 'password_transport': 'encrypted_ssh_tunnel_only'}
+    if action == 'scan':
+        flight_guard()
+        accepted = wpa('SCAN') == 'OK'
+        results = []
+        for line in wpa('SCAN_RESULTS').splitlines()[1:]:
+            fields = line.split('\t', 4)
+            if len(fields) == 5:
+                results.append({'ssid': decode_ssid(fields[4]), 'signal_dbm': fields[2], 'security': fields[3]})
+        return {'networks': results[:128], 'scan_requested': accepted, 'detail': 'Latest cached scan; refresh again in a few seconds for new results.'}
+    if action == 'updates':
+        flight_guard()
+        result = subprocess.run(['/usr/bin/systemctl', 'start', '--no-block', 'orangepi-approved-update-request.service'], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
+        if result.returncode: raise ValueError('Approved update check could not be queued.')
+        return {'state': 'queued', 'detail': 'Approved security-update check requested. It runs only on trusted Wi-Fi without flight hardware/session, and never automatically reboots. No internet means no new update downloads.'}
+    if action == 'bench':
+        flight_guard(); return {'bench': True}
+    ssid = validate_ssid(incoming['ssid'])
+    if action == 'save': return save_profile(ssid, validate_password(incoming['password']))
+    return connect_saved(ssid)
+
+def main():
+    # systemd supplies the accepted AF_UNIX connection as stdin/stdout.
+    conn = socket.socket(fileno=os.dup(0))
+    conn.settimeout(5)
+    try:
+        _, uid, _ = struct.unpack('3i', conn.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+        if uid != 1000: raise ValueError('Only the companion account may request Wi-Fi actions.')
+        with (RUNTIME / 'operation.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            stream = conn.makefile('rb'); raw = stream.readline(4097)
+            if len(raw) > 4096 or not raw.endswith(b'\n'): raise ValueError('Wi-Fi request is too large or incomplete.')
+            reply = dispatch(json.loads(raw))
+    except ValueError as exc: reply = {'error': str(exc)}
+    except (OSError, KeyError, TypeError, subprocess.SubprocessError, yaml.YAMLError):
+        reply = {'error': 'Wi-Fi helper is busy or unavailable. Existing boot/Wi-Fi settings were retained; retry status.'}
+    try: conn.sendall(json.dumps(reply).encode() + b'\n')
+    except (BrokenPipeError, ConnectionResetError, socket.timeout):
+        # The caller may time out or leave the page before the bounded reply.
+        # A disconnected client is not a failed Wi-Fi service or an action retry.
+        pass
+    finally: conn.close()
+
+if __name__ == '__main__': main()

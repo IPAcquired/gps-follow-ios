@@ -1,0 +1,13 @@
+[Unit]
+Description=Owner-requested trusted-network security update check
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/orangepi-home-maintenance --force
+Nice=19
+CPUWeight=1
+IOWeight=1
+CPUAffinity=0 1 2 3 4 5 6 7
+IOSchedulingClass=idle
+TimeoutStartSec=45min

@@ -1,0 +1,15 @@
+[Unit]
+Description=Private direct Wi-Fi link for the iPhone/iPad companion
+After=sys-subsystem-net-devices-wlan0.device
+Wants=sys-subsystem-net-devices-wlan0.device
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/sbin/orangepi-direct-link start
+ExecStart=/usr/sbin/hostapd /etc/hostapd/orangepi-direct.conf
+ExecStopPost=/usr/local/sbin/orangepi-direct-link stop
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

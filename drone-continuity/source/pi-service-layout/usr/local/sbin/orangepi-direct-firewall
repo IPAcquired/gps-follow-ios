@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+if [ "${1:-}" = start ]; then
+  /usr/sbin/nft list table inet orangepi_direct >/dev/null 2>&1 && /usr/sbin/nft delete table inet orangepi_direct || true
+  exec /usr/sbin/nft -f /etc/nftables.d/orangepi-direct-link.nft
+fi
+if [ "${1:-}" = stop ]; then
+  /usr/sbin/nft delete table inet orangepi_direct 2>/dev/null || true
+  exit 0
+fi
+echo "Usage: $0 start|stop" >&2
+exit 2

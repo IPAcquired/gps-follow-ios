@@ -1,0 +1,545 @@
+diff --git a/ArduCopter/sensors.cpp b/ArduCopter/sensors.cpp
+index 88ba5b83f2..fd676bf3e7 100644
+--- a/ArduCopter/sensors.cpp
++++ b/ArduCopter/sensors.cpp
+@@ -31,7 +31,10 @@ void Copter::read_rangefinder(void)
+ 
+ #if HAL_PROXIMITY_ENABLED
+     if (rangefinder_state.enabled_and_healthy() || rangefinder_state.data_stale()) {
+-        g2.proximity.set_rangefinder_alt(rangefinder_state.enabled, rangefinder_state.alt_healthy, rangefinder_state.alt_m_filt.get() * 100.0);
++        g2.proximity.set_rangefinder_alt(rangefinder_state.enabled,
++                                         rangefinder_state.alt_healthy,
++                                         rangefinder_state.alt_m_filt.get() * 100.0,
++                                         rangefinder.last_reading_ms(ROTATION_PITCH_270));
+     }
+ #endif
+ }
+diff --git a/ArduCopter/system.cpp b/ArduCopter/system.cpp
+index 52304f8ccd..6b2cb7175b 100644
+--- a/ArduCopter/system.cpp
++++ b/ArduCopter/system.cpp
+@@ -15,6 +15,12 @@ static void failsafe_check_static()
+ 
+ void Copter::init_ardupilot()
+ {
++#if AP_AVOIDANCE_ENABLED
++    // parameters are loaded before vehicle initialisation; latch adaptive
++    // avoidance settings here so they cannot change during a flight
++    avoid.init();
++#endif
++
+     // init winch
+ #if AP_WINCH_ENABLED
+     g2.winch.init();
+diff --git a/libraries/AC_Avoidance/AC_Avoid.cpp b/libraries/AC_Avoidance/AC_Avoid.cpp
+index df6db48b65..5d8322381a 100644
+--- a/libraries/AC_Avoidance/AC_Avoid.cpp
++++ b/libraries/AC_Avoidance/AC_Avoid.cpp
+@@ -19,6 +19,7 @@
+ 
+ #include "AC_Avoid.h"
+ #include <AP_AHRS/AP_AHRS.h>     // AHRS library
++#include <AP_Arming/AP_Arming.h>
+ #include <AC_Fence/AC_Fence.h>         // Failsafe fence library
+ #include <AP_Proximity/AP_Proximity.h>
+ #include <AP_Beacon/AP_Beacon.h>
+@@ -26,6 +27,8 @@
+ #include <AP_Vehicle/AP_Vehicle_Type.h>
+ #include <stdio.h>
+ 
++extern const AP_HAL::HAL& hal;
++
+ #if !APM_BUILD_TYPE(APM_BUILD_ArduPlane)
+ 
+ #if APM_BUILD_TYPE(APM_BUILD_Rover)
+@@ -123,6 +126,54 @@ const AP_Param::GroupInfo AC_Avoid::var_info[] = {
+     AP_GROUPINFO_FRAME("ANG_MAX", 11,  AC_Avoid, _angle_max_deg, 10.0, AP_PARAM_FRAME_COPTER | AP_PARAM_FRAME_HELI | AP_PARAM_FRAME_TRICOPTER),
+ #endif
+ 
++    // @Param: ADAP_EN
++    // @DisplayName: Directional adaptive proximity margin enable
++    // @Description: Adds a per-obstacle reaction-time margin to GPS-mode proximity avoidance. Native stopping distance remains unchanged. Reboot required.
++    // @Values: 0:Disabled,1:Enabled
++    // @RebootRequired: True
++    // @User: Advanced
++    AP_GROUPINFO("ADAP_EN", 12, AC_Avoid, _adaptive_enable, 0),
++
++    // @Param: ADAP_RT
++    // @DisplayName: Adaptive margin reaction time
++    // @Description: Per-obstacle closing-speed multiplier. This is a latency allowance, not stopping distance.
++    // @Units: s
++    // @Range: 0 1
++    // @Increment: 0.05
++    // @User: Advanced
++    AP_GROUPINFO("ADAP_RT", 13, AC_Avoid, _adaptive_reaction_s, 0.35f),
++
++    // @Param: ADAP_MAX
++    // @DisplayName: Adaptive margin maximum extra distance
++    // @Units: m
++    // @Range: 0 2
++    // @Increment: 0.05
++    // @User: Advanced
++    AP_GROUPINFO("ADAP_MAX", 14, AC_Avoid, _adaptive_extra_max_m, 1.0f),
++
++    // @Param: ADAP_HADD
++    // @DisplayName: Adaptive low-height horizontal margin addition
++    // @Description: Extra horizontal-only clearance when the healthy downward rangefinder altitude is below ADAP_HON. This does not provide ground avoidance.
++    // @Units: m
++    // @Range: 0 0.5
++    // @Increment: 0.05
++    // @User: Advanced
++    AP_GROUPINFO("ADAP_HADD", 15, AC_Avoid, _adaptive_low_height_add_m, 0.15f),
++
++    // @Param: ADAP_HON
++    // @DisplayName: Adaptive low-height engage altitude
++    // @Units: m
++    // @Range: 0.2 10
++    // @User: Advanced
++    AP_GROUPINFO("ADAP_HON", 16, AC_Avoid, _adaptive_low_height_on_m, 1.5f),
++
++    // @Param: ADAP_HOFF
++    // @DisplayName: Adaptive low-height release altitude
++    // @Units: m
++    // @Range: 0.2 10
++    // @User: Advanced
++    AP_GROUPINFO("ADAP_HOFF", 17, AC_Avoid, _adaptive_low_height_off_m, 1.8f),
++
+     AP_GROUPEND
+ };
+ 
+@@ -134,6 +185,32 @@ AC_Avoid::AC_Avoid()
+     AP_Param::setup_object_defaults(this, var_info);
+ }
+ 
++void AC_Avoid::init()
++{
++    _adaptive_latched = (_adaptive_enable != 0);
++    _adaptive_arm_epoch_us = 0;
++    _adaptive_last_call_ms = 0;
++    reset_adaptive_state();
++}
++
++void AC_Avoid::reset_adaptive_state()
++{
++    _adaptive_low_height = false;
++    for (uint8_t i = 0; i < ARRAY_SIZE(_adaptive_extra_cm); i++) {
++        _adaptive_extra_cm[i] = 0.0f;
++        _adaptive_sector_ms[i] = 0;
++    }
++}
++
++void AC_Avoid::proximity_avoidance_enable(bool on_off)
++{
++    if (_proximity_enabled && !on_off) {
++        reset_adaptive_state();
++        _adaptive_last_call_ms = 0;
++    }
++    _proximity_enabled = on_off;
++}
++
+ // convert parameters
+ void AC_Avoid::convert_params()
+ {
+@@ -1240,6 +1317,27 @@ void AC_Avoid::adjust_velocity_proximity(float kP, float accel_cmss, Vector3f &d
+     }
+ 
+     AP_Proximity &_proximity = *proximity;
++
++    const uint32_t adaptive_now_ms = AP_HAL::millis();
++    const bool soft_armed = hal.util->get_soft_armed();
++    const uint64_t arm_epoch_us = AP::arming().arm_time_us();
++    if (!soft_armed) {
++        reset_adaptive_state();
++        _adaptive_arm_epoch_us = 0;
++    } else if (arm_epoch_us != _adaptive_arm_epoch_us) {
++        // AP_Arming's arm timestamp changes for every flight, even when a
++        // complete disarm/rearm occurs between avoidance calls.  The enable
++        // value remains the reboot-latched value set by init().
++        reset_adaptive_state();
++        _adaptive_arm_epoch_us = arm_epoch_us;
++    } else if ((_adaptive_last_call_ms != 0) &&
++               ((adaptive_now_ms - _adaptive_last_call_ms) > 1000U)) {
++        // Clear transient margins after a long suspension (mode/aux disable,
++        // estimator reset or disarm/rearm gap) before processing new data.
++        reset_adaptive_state();
++    }
++    _adaptive_last_call_ms = adaptive_now_ms;
++
+     // get total number of obstacles
+     const uint8_t obstacle_num = _proximity.get_obstacle_count();
+     if (obstacle_num == 0) {
+@@ -1261,14 +1359,43 @@ void AC_Avoid::adjust_velocity_proximity(float kP, float accel_cmss, Vector3f &d
+     Vector3f safe_vel_neu_cms = Vector3f{desired_vel_body_ne_cms.x, desired_vel_body_ne_cms.y, desired_vel_neu_cms.z};
+     const Vector3f safe_vel_orig_neu_cms = safe_vel_neu_cms;
+ 
+-    // calc margin in cm
+-    const float margin_cm = MAX(_margin_m * 100.0f, 0.0f);
+-    Vector3f stopping_point_plus_margin_neu_cm;
+-    if (!desired_vel_neu_cms.is_zero()) {
+-        // only used for "stop mode". Pre-calculating the stopping point here makes sure we do not need to repeat the calculations under iterations.
+-        const float speed_cms = safe_vel_neu_cms.length();
+-        stopping_point_plus_margin_neu_cm = safe_vel_neu_cms * ((2.0f + margin_cm + get_stopping_distance(kP, accel_cmss, speed_cms)) / speed_cms);
++    // Baseline remains the live AVOID_MARGIN value.  Adaptive clearance is local
++    // to each fresh obstacle and never mutates or saves AP_Param state.
++    const float base_margin_cm = MAX(_margin_m * 100.0f, 0.0f);
++    nav_filter_status filter_status{};
++    const bool filter_velocity_healthy = _ahrs.get_filter_status(filter_status) &&
++                                         filter_status.flags.attitude &&
++                                         filter_status.flags.horiz_vel &&
++                                         !filter_status.flags.gps_glitching;
++    Vector3f actual_vel_ned_ms;
++    const bool actual_vel_valid = filter_velocity_healthy &&
++                                  _ahrs.get_velocity_NED(actual_vel_ned_ms) &&
++                                  !actual_vel_ned_ms.is_nan() && !actual_vel_ned_ms.is_inf();
++    const Vector2f actual_vel_body_ms = actual_vel_valid ?
++        _ahrs.earth_to_body2D(actual_vel_ned_ms.xy()) : Vector2f{};
++    const float adaptive_reaction_s = constrain_float(isfinite(float(_adaptive_reaction_s)) ? float(_adaptive_reaction_s) : 0.35f, 0.0f, 1.0f);
++    const float adaptive_extra_max_cm = 100.0f * constrain_float(isfinite(float(_adaptive_extra_max_m)) ? float(_adaptive_extra_max_m) : 1.0f, 0.0f, 2.0f);
++    const float adaptive_height_add_cm = 100.0f * constrain_float(isfinite(float(_adaptive_low_height_add_m)) ? float(_adaptive_low_height_add_m) : 0.15f, 0.0f, 0.5f);
++    const float adaptive_low_on_m = constrain_float(isfinite(float(_adaptive_low_height_on_m)) ? float(_adaptive_low_height_on_m) : 1.5f, 0.2f, 10.0f);
++    const float adaptive_low_off_m = MAX(adaptive_low_on_m,
++        constrain_float(isfinite(float(_adaptive_low_height_off_m)) ? float(_adaptive_low_height_off_m) : 1.8f, 0.2f, 10.0f));
++    float down_alt_m = 0.0f;
++    const bool down_alt_valid = _proximity.get_fresh_rangefinder_alt(down_alt_m) &&
++                                isfinite(down_alt_m) && down_alt_m >= 0.0f;
++    if (down_alt_valid) {
++        if (_adaptive_low_height) {
++            _adaptive_low_height = down_alt_m < adaptive_low_off_m;
++        } else {
++            _adaptive_low_height = down_alt_m < adaptive_low_on_m;
++        }
++    } else {
++        _adaptive_low_height = false;
+     }
++    // Preserve stock STOP projection semantics: compute from the original requested
++    // velocity once, before any obstacle can modify safe_vel_neu_cms.
++    const float stop_projection_speed_cms = safe_vel_orig_neu_cms.length();
++    const float stop_projection_distance_cm = is_positive(stop_projection_speed_cms) ?
++        get_stopping_distance(kP, accel_cmss, stop_projection_speed_cms) : 0.0f;
+ 
+     for (uint8_t i = 0; i<obstacle_num; i++) {
+         // get obstacle from proximity library
+@@ -1283,9 +1410,50 @@ void AC_Avoid::adjust_velocity_proximity(float kP, float accel_cmss, Vector3f &d
+             continue;
+         }
+ 
+-        // back away if vehicle has breached margin
+-        if (is_negative(dist_to_boundary_cm - margin_cm)) {
+-            const float breach_dist_cm = margin_cm - dist_to_boundary_cm;
++        float margin_cm = base_margin_cm;
++        float closing_speed_ms = 0.0f;
++        uint8_t adaptive_sector = 0;
++        const Vector3f obstacle_unit = vector_to_obstacle_neu / dist_to_boundary_cm;
++        // Apply only to horizontal obstacles.  Up/down avoidance and HAGL control
++        // remain governed by their existing independent paths.
++        const bool horizontal_obstacle = fabsf(obstacle_unit.z) < 0.15f;
++        if (_adaptive_latched && horizontal_obstacle) {
++            if (actual_vel_valid) {
++                closing_speed_ms = MAX(0.0f, actual_vel_body_ms * obstacle_unit.xy());
++            }
++            const float raw_extra_cm = actual_vel_valid ?
++                MIN(closing_speed_ms * adaptive_reaction_s * 100.0f, adaptive_extra_max_cm) :
++                adaptive_extra_max_cm;
++            const float bearing_deg = wrap_360(degrees(atan2f(obstacle_unit.y, obstacle_unit.x)));
++            adaptive_sector = uint8_t((bearing_deg + 22.5f) / 45.0f) & 7U;
++            float &extra_cm = _adaptive_extra_cm[adaptive_sector];
++            const uint32_t prior_ms = _adaptive_sector_ms[adaptive_sector];
++            const float dt_s = prior_ms == 0 ? 0.0f : MIN((adaptive_now_ms - prior_ms) * 0.001f, 10.0f);
++            _adaptive_sector_ms[adaptive_sector] = adaptive_now_ms;
++            constexpr float hysteresis_cm = 5.0f;
++            if (raw_extra_cm > extra_cm + hysteresis_cm) {
++                extra_cm = raw_extra_cm; // protection increases immediately
++            } else if (raw_extra_cm < extra_cm - hysteresis_cm) {
++                extra_cm = MAX(raw_extra_cm, extra_cm - 50.0f * dt_s); // decay <=0.5m/s
++            }
++            margin_cm += extra_cm;
++            if (_adaptive_low_height) {
++                margin_cm += adaptive_height_add_cm;
++            }
++            if (adaptive_now_ms - _adaptive_last_log_ms >= 500U) {
++                _adaptive_last_log_ms = adaptive_now_ms;
++                AP::logger().Write("ADPM", "TimeUS,Base,Eff,Close,DAlt,Sec,VOK,DOK",
++                                   "QffffBBB", AP_HAL::micros64(), base_margin_cm * 0.01f,
++                                   margin_cm * 0.01f, closing_speed_ms, down_alt_valid ? down_alt_m : -1.0f,
++                                   adaptive_sector, uint8_t(actual_vel_valid), uint8_t(down_alt_valid));
++            }
++        }
++
++        // Adaptive clearance limits/brakes approach velocity, but does not
++        // enlarge the stock reverse-command zone.  Back-away remains tied to
++        // the operator's live AVOID_MARGIN baseline.
++        if (is_negative(dist_to_boundary_cm - base_margin_cm)) {
++            const float breach_dist_cm = base_margin_cm - dist_to_boundary_cm;
+             // add a deadzone so that the vehicle doesn't backup and go forward again and again
+             const float deadzone_cm = MAX(0.0f, _backup_deadzone_m) * 100.0f;
+             if (breach_dist_cm > deadzone_cm) {
+@@ -1320,6 +1488,11 @@ void AC_Avoid::adjust_velocity_proximity(float kP, float accel_cmss, Vector3f &d
+         }
+ 
+         case BEHAVIOR_STOP: {
++            Vector3f stopping_point_plus_margin_neu_cm;
++            if (is_positive(stop_projection_speed_cms)) {
++                stopping_point_plus_margin_neu_cm = safe_vel_orig_neu_cms *
++                    ((2.0f + margin_cm + stop_projection_distance_cm) / stop_projection_speed_cms);
++            }
+             // vector from current position to obstacle
+             Vector3f limit_direction_neu;
+             // find closest point with line segment
+diff --git a/libraries/AC_Avoidance/AC_Avoid.h b/libraries/AC_Avoidance/AC_Avoid.h
+index 079c592171..6335a8a24e 100644
+--- a/libraries/AC_Avoidance/AC_Avoid.h
++++ b/libraries/AC_Avoidance/AC_Avoid.h
+@@ -47,6 +47,9 @@ public:
+     // parameter conversion
+     void convert_params();
+ 
++    // latch reboot-required adaptive settings after parameters are loaded
++    void init();
++
+     // Adjusts the desired velocity so that the vehicle can stop
+     // before the fence/object.
+     // kP, accel_cmss are for the horizontal axis
+@@ -87,7 +90,7 @@ public:
+ #endif
+ 
+     // enable/disable proximity based avoidance
+-    void proximity_avoidance_enable(bool on_off) { _proximity_enabled = on_off; }
++    void proximity_avoidance_enable(bool on_off);
+     bool proximity_avoidance_enabled() const { return (_proximity_enabled && (_enabled & AC_AVOID_USE_PROXIMITY_SENSOR) > 0); }
+     void proximity_alt_avoidance_enable(bool on_off) { _proximity_alt_enabled = on_off; }
+ 
+@@ -155,6 +158,10 @@ private:
+      */
+     void adjust_velocity_proximity(float kP, float accel_cmss, Vector3f &desired_vel_neu_cms, Vector3f &backup_vel, float kP_z, float accel_z_cmss, float dt);
+ 
++    // clear transient directional margin state after disarm, disable or a
++    // long update gap so it cannot leak into a later flight/session
++    void reset_adaptive_state();
++
+     /*
+      * Adjusts the desired velocity given an array of boundary points
+      * The boundary must be in Earth Frame
+@@ -225,6 +232,19 @@ private:
+     AP_Float _alt_min_m;                // alt below which Proximity based avoidance is turned off
+     AP_Float _accel_max_mss;            // maximum acceleration while simple avoidance is active
+     AP_Float _backup_deadzone_m;        // distance beyond AVOID_MARGIN parameter, after which vehicle will backaway from obstacles
++    AP_Int8 _adaptive_enable;            // latched at vehicle initialisation; reboot required
++    AP_Float _adaptive_reaction_s;       // reaction-time allowance, not stopping distance
++    AP_Float _adaptive_extra_max_m;      // maximum per-obstacle extra margin
++    AP_Float _adaptive_low_height_add_m; // horizontal-only low-height addition
++    AP_Float _adaptive_low_height_on_m;  // HAGL hysteresis engage
++    AP_Float _adaptive_low_height_off_m; // HAGL hysteresis release
++    bool _adaptive_latched = false;
++    bool _adaptive_low_height = false;
++    float _adaptive_extra_cm[8]{};
++    uint32_t _adaptive_sector_ms[8]{};
++    uint32_t _adaptive_last_log_ms = 0;
++    uint32_t _adaptive_last_call_ms = 0;
++    uint64_t _adaptive_arm_epoch_us = 0;
+ 
+     bool _proximity_enabled = true;     // true if proximity sensor based avoidance is enabled (used to allow pilot to enable/disable)
+     bool _proximity_alt_enabled = true; // true if proximity sensor based avoidance is enabled based on altitude
+diff --git a/libraries/AP_Proximity/AP_Proximity.h b/libraries/AP_Proximity/AP_Proximity.h
+index 7a85fe809e..3958d21646 100644
+--- a/libraries/AP_Proximity/AP_Proximity.h
++++ b/libraries/AP_Proximity/AP_Proximity.h
+@@ -180,7 +180,7 @@ public:
+     bool get_upward_distance(float &distance_m) const;
+ 
+     // set alt as read from downward facing rangefinder. Tilt is already adjusted for
+-    void set_rangefinder_alt(bool use, bool healthy, float alt_cm);
++    void set_rangefinder_alt(bool use, bool healthy, float alt_cm, uint32_t last_reading_ms);
+ 
+     // method called by vehicle to have AP_Proximity write onboard log messages
+     void log();
+@@ -209,6 +209,11 @@ public:
+     // Check if Obstacle defined by body-frame yaw and pitch is near ground
+     bool check_obstacle_near_ground(float pitch, float yaw, float distance) const;
+ 
++    // get altitude from a healthy downward rangefinder in meters using the
++    // actual backend packet timestamp.  This is separate from the stock
++    // ground-suppression freshness semantics.
++    bool get_fresh_rangefinder_alt(float &alt_m) const;
++
+     // get proximity address (for AP_Periph CAN)
+     uint8_t get_address(uint8_t id) const {
+         return id >= AP_PROXIMITY_MAX_INSTANCES? 0 : uint8_t(params[id].address.get());
+@@ -234,14 +239,15 @@ private:
+     AP_Float _filt_freq;                        // cutoff frequency for low pass filter
+     AP_Float _alt_min_m;                        // Minimum altitude -in meters- below which proximity should not work.
+ 
+-    // get alt from rangefinder in meters. This reading is corrected for vehicle tilt
++    // stock getter used by ground-return suppression
+     bool get_rangefinder_alt(float &alt_m) const;
+ 
+     struct RangeFinderState {
+         bool use;                               // true if enabled
+         bool healthy;                           // true if we can trust the altitude from the rangefinder
+         int16_t alt_cm;                         // tilt compensated altitude (in cm) from rangefinder
+-        uint32_t last_downward_update_ms;       // last update ms
++        uint32_t last_downward_update_ms;       // stock vehicle-to-proximity update time
++        uint32_t last_downward_reading_ms;      // actual sensor packet/update time
+     } _rangefinder_state;
+ 
+     HAL_Semaphore detect_sem;
+diff --git a/libraries/AP_Proximity/AP_Proximity_Boundary_3D.cpp b/libraries/AP_Proximity/AP_Proximity_Boundary_3D.cpp
+index abe57cafdf..6787f03ec1 100644
+--- a/libraries/AP_Proximity/AP_Proximity_Boundary_3D.cpp
++++ b/libraries/AP_Proximity/AP_Proximity_Boundary_3D.cpp
+@@ -147,8 +147,10 @@ void AP_Proximity_Boundary_3D::update_boundary(const Face &face)
+     }
+     _boundary_points[layer][sector] = _sector_edge_vector[layer][sector] * shortest_distance;
+ 
+-    // if the next sector (clockwise) has an invalid distance, set boundary to create a cup like boundary
+-    if (!_distance_valid[layer][next_sector]) {
++    // Extend the cup only across an empty edge. A valid sector beyond the
++    // empty neighbour owns this edge and must not be overwritten by this face.
++    if (!_distance_valid[layer][next_sector] &&
++        !_distance_valid[layer][get_next_sector(next_sector)]) {
+         _boundary_points[layer][next_sector] = _sector_edge_vector[layer][next_sector] * shortest_distance;
+     }
+ 
+diff --git a/libraries/AP_Proximity/AP_Proximity_Utils.cpp b/libraries/AP_Proximity/AP_Proximity_Utils.cpp
+index f40a64ea5c..957fec61a3 100644
+--- a/libraries/AP_Proximity/AP_Proximity_Utils.cpp
++++ b/libraries/AP_Proximity/AP_Proximity_Utils.cpp
+@@ -25,12 +25,13 @@
+ extern const AP_HAL::HAL& hal;
+ 
+ // set alt as read from downward facing rangefinder. Tilt is already adjusted for.
+-void AP_Proximity::set_rangefinder_alt(bool use, bool healthy, float alt_cm)
++void AP_Proximity::set_rangefinder_alt(bool use, bool healthy, float alt_cm, uint32_t last_reading_ms)
+ {
+     _rangefinder_state.use = use;
+     _rangefinder_state.healthy = healthy;
+     _rangefinder_state.alt_cm = alt_cm;
+     _rangefinder_state.last_downward_update_ms = AP_HAL::millis();
++    _rangefinder_state.last_downward_reading_ms = last_reading_ms;
+ }
+ 
+ // get alt from rangefinder in meters
+@@ -51,6 +52,19 @@ bool AP_Proximity::get_rangefinder_alt(float &alt_m) const
+     return true;
+ }
+ 
++// get downward altitude only when the actual backend reading is fresh
++bool AP_Proximity::get_fresh_rangefinder_alt(float &alt_m) const
++{
++    if (!_rangefinder_state.use || !_rangefinder_state.healthy) {
++        return false;
++    }
++    if ((AP_HAL::millis() - _rangefinder_state.last_downward_reading_ms) > PROXIMITY_ALT_DETECT_TIMEOUT_MS) {
++        return false;
++    }
++    alt_m = _rangefinder_state.alt_cm * 0.01f;
++    return true;
++}
++
+ // Check if Obstacle defined by body-frame yaw and pitch is near ground
+ bool AP_Proximity::check_obstacle_near_ground(float pitch, float yaw, float distance) const
+ {
+diff --git a/libraries/AP_RangeFinder/AP_RangeFinder.cpp b/libraries/AP_RangeFinder/AP_RangeFinder.cpp
+index 6148383db7..a272313be4 100644
+--- a/libraries/AP_RangeFinder/AP_RangeFinder.cpp
++++ b/libraries/AP_RangeFinder/AP_RangeFinder.cpp
+@@ -690,12 +690,16 @@ RangeFinder::Status RangeFinder::status_orient(enum Rotation orientation) const
+     return backend->status();
+ }
+ 
+-void RangeFinder::handle_msg(const mavlink_message_t &msg)
++void RangeFinder::handle_msg(const mavlink_message_t &msg, AP_HAL::UARTDriver *source_port)
+ {
+     uint8_t i;
+     for (i=0; i<num_instances; i++) {
+         if ((drivers[i] != nullptr) && ((Type)params[i].type.get() != Type::NONE)) {
+-          drivers[i]->handle_msg(msg);
++            if ((Type)params[i].type.get() == Type::MAVLink && params[i].mavlink_port.get() >= 0 &&
++                (source_port == nullptr || source_port != AP::serialmanager().get_serial_by_id(params[i].mavlink_port.get()))) {
++                continue;
++            }
++            drivers[i]->handle_msg(msg);
+         }
+     }
+ }
+diff --git a/libraries/AP_RangeFinder/AP_RangeFinder.h b/libraries/AP_RangeFinder/AP_RangeFinder.h
+index c9d961d22a..9cbf86105b 100644
+--- a/libraries/AP_RangeFinder/AP_RangeFinder.h
++++ b/libraries/AP_RangeFinder/AP_RangeFinder.h
+@@ -260,7 +260,7 @@ public:
+     void update(void);
+ 
+     // Handle an incoming DISTANCE_SENSOR message (from a MAVLink enabled range finder)
+-    void handle_msg(const mavlink_message_t &msg);
++    void handle_msg(const mavlink_message_t &msg, AP_HAL::UARTDriver *source_port);
+ 
+ #if HAL_MSP_RANGEFINDER_ENABLED
+     // Handle an incoming DISTANCE_SENSOR message (from a MSP enabled range finder)
+diff --git a/libraries/AP_RangeFinder/AP_RangeFinder_MAVLink.cpp b/libraries/AP_RangeFinder/AP_RangeFinder_MAVLink.cpp
+index 2a1a1a36ce..1d2dc30aa1 100644
+--- a/libraries/AP_RangeFinder/AP_RangeFinder_MAVLink.cpp
++++ b/libraries/AP_RangeFinder/AP_RangeFinder_MAVLink.cpp
+@@ -27,8 +27,9 @@ void AP_RangeFinder_MAVLink::handle_msg(const mavlink_message_t &msg)
+     mavlink_distance_sensor_t packet;
+     mavlink_msg_distance_sensor_decode(&msg, &packet);
+ 
+-    // only accept distances for the configured orientation
+-    if (packet.orientation == orientation()) {
++    // Port selection is enforced by the frontend; otherwise select by ID or orientation.
++    if ((params.address.get() == 0 && (params.mavlink_port.get() >= 0 || packet.orientation == orientation())) ||
++        (params.address.get() > 0 && params.address.get() == packet.id)) {
+         state.last_reading_ms = AP_HAL::millis();
+         distance = packet.current_distance * 0.01;
+         _max_distance = packet.max_distance * 0.01;
+diff --git a/libraries/AP_RangeFinder/AP_RangeFinder_Params.cpp b/libraries/AP_RangeFinder/AP_RangeFinder_Params.cpp
+index 6eea67f80c..ac1fdf13ce 100644
+--- a/libraries/AP_RangeFinder/AP_RangeFinder_Params.cpp
++++ b/libraries/AP_RangeFinder/AP_RangeFinder_Params.cpp
+@@ -150,7 +150,7 @@ const AP_Param::GroupInfo AP_RangeFinder_Params::var_info[] = {
+ 
+     // @Param: ADDR
+     // @DisplayName: Bus address of sensor
+-    // @Description: This sets the bus address of the sensor, where applicable. Used for the I2C and DroneCAN sensors to allow for multiple sensors on different addresses.
++    // @Description: This sets the bus address of the sensor, where applicable. Used for the I2C and DroneCAN sensors to allow for multiple sensors on different addresses. For MAVLink sensors, 0 selects by MAV_PORT when configured or by orientation otherwise; 1 to 127 selects the DISTANCE_SENSOR ID regardless of its reported orientation.
+     // @Range: 0 127
+     // @Increment: 1
+     // @User: Standard
+@@ -188,6 +188,14 @@ const AP_Param::GroupInfo AP_RangeFinder_Params::var_info[] = {
+     // @User: Advanced
+     AP_GROUPINFO("ORIENT", 53, AP_RangeFinder_Params, orientation, AP_RANGEFINDER_DEFAULT_ORIENTATION),
+ 
++    // @Param: MAV_PORT
++    // @DisplayName: MAVLink rangefinder serial port
++    // @Description: Select the SERIAL port receiving this MAVLink rangefinder. -1 disables port selection. When a port is selected, ORIENT defines the physical direction regardless of the sensor's transmitted orientation. ADDR can additionally filter a nonzero sensor ID.
++    // @Range: -1 9
++    // @Increment: 1
++    // @User: Advanced
++    AP_GROUPINFO("MAV_PORT", 54, AP_RangeFinder_Params, mavlink_port, -1),
++
+     AP_GROUPEND
+ };
+ 
+diff --git a/libraries/AP_RangeFinder/AP_RangeFinder_Params.h b/libraries/AP_RangeFinder/AP_RangeFinder_Params.h
+index f0b58b3164..c8c11e3a3a 100644
+--- a/libraries/AP_RangeFinder/AP_RangeFinder_Params.h
++++ b/libraries/AP_RangeFinder/AP_RangeFinder_Params.h
+@@ -31,6 +31,7 @@ public:
+     AP_Float ground_clearance;
+     AP_Int8  address;
+     AP_Int8  orientation;
++    AP_Int8  mavlink_port;
+ };
+ 
+ #endif  // AP_RANGEFINDER_ENABLED
+diff --git a/libraries/GCS_MAVLink/GCS_Common.cpp b/libraries/GCS_MAVLink/GCS_Common.cpp
+index 7e368815f1..3324cdfd55 100644
+--- a/libraries/GCS_MAVLink/GCS_Common.cpp
++++ b/libraries/GCS_MAVLink/GCS_Common.cpp
+@@ -4285,7 +4285,7 @@ void GCS_MAVLINK::handle_distance_sensor(const mavlink_message_t &msg)
+ #if AP_RANGEFINDER_ENABLED
+     RangeFinder *rangefinder = AP::rangefinder();
+     if (rangefinder != nullptr) {
+-        rangefinder->handle_msg(msg);
++        rangefinder->handle_msg(msg, get_uart());
+     }
+ #endif
+ 

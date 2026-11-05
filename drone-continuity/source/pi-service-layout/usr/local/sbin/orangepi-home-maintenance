@@ -1,0 +1,252 @@
+#!/bin/bash
+# Home-Wi-Fi-only maintenance for the Orange Pi companion computer.
+set -u
+
+config=/etc/orangepi-home-maintenance.conf
+state=/var/lib/orangepi-maintenance
+lock=/run/orangepi-home-maintenance.lock
+active=/run/orangepi-maintenance-active
+public_state=/run/orangepi-maintenance-state.json
+force=false
+
+mavlink_status_active() {
+    local status=/run/orangepi-mavlink/status.json
+    # Missing, stale or malformed status is uncertainty, not permission to update.
+    [ -e "$status" ] || return 0
+    /usr/bin/python3 - "$status" <<'PY'
+import json
+import math
+import sys
+import time
+
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as handle:
+        value = json.load(handle)
+    updated = value.get("updated_unix") if isinstance(value, dict) else None
+    safe = (isinstance(value, dict) and type(value.get("schema")) is int and value.get("schema") == 1
+            and value.get("authority") == "read_only_no_mavlink_transmit"
+            and type(updated) in (int, float) and math.isfinite(updated)
+            and 0 <= time.time() - updated <= 5
+            and value.get("armed") is False and value.get("connected") is False)
+    active = not safe
+except Exception:
+    # A malformed live-status file is not evidence that maintenance is safe.
+    active = True
+raise SystemExit(0 if active else 1)
+PY
+}
+
+publish_state() {
+    stage=$1
+    detail=$2
+    pending_count=${3:-0}
+    pending_file=${4:-}
+    temporary="${public_state}.tmp"
+    packages=''
+    if [ -n "$pending_file" ] && [ -r "$pending_file" ]; then
+        packages=$(tail -n +2 "$pending_file" | sed -n 's#^\([^/[]*\)/.*#    "\1",#p' | head -20 | sed '$ s/,$//')
+    fi
+    cat > "$temporary" <<EOF
+{
+  "schema": 1,
+  "state": "$stage",
+  "detail": "$detail",
+  "checked_utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "pending_count": $pending_count,
+  "pending_packages": [
+$packages
+  ]
+}
+EOF
+    chmod 644 "$temporary"
+    mv -f "$temporary" "$public_state"
+}
+
+if [ "${1:-}" = "--force" ]; then
+    force=true
+elif [ "$#" -ne 0 ]; then
+    echo "Usage: $0 [--force]" >&2
+    exit 2
+fi
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "This maintenance task must run as root." >&2
+    exit 2
+fi
+
+# Coordinate with native USB selection; leave busy tasks untouched.
+exec 8>/run/lock/orangepi-usb-controller-select.lock
+flock -n 8 || exit 0
+exec 9>"$lock"
+flock -n 9 || exit 0
+
+if [ ! -r "$config" ]; then
+    echo "Home Wi-Fi identity is not configured; no updates were attempted." >&2
+    exit 3
+fi
+# shellcheck source=/dev/null
+. "$config"
+
+ssid=$(/usr/sbin/iw dev wlan0 link 2>/dev/null | sed -n 's/^[[:space:]]*SSID: //p' | head -1)
+ssid_hash=$(printf '%s' "$ssid" | sha256sum | awk '{print $1}')
+trusted=false
+for trusted_hash in ${TRUSTED_SSID_SHA256:-${HOME_SSID_SHA256:-unset}}; do
+    if [ "$ssid_hash" = "$trusted_hash" ]; then trusted=true; break; fi
+done
+if [ -z "$ssid" ] || [ "$trusted" != true ]; then
+    publish_state waiting_for_home_wifi "Waiting for the configured home Wi-Fi before checking updates."
+    exit 0
+fi
+if [ "$(cat /sys/class/net/wlan0/operstate 2>/dev/null || true)" != up ]; then
+    exit 0
+fi
+if ! ip route show default | grep -q ' dev wlan0'; then
+    exit 0
+fi
+
+# A connected flight controller or active router means maintenance must wait.
+# Bluetooth RFCOMM is included because the H743 can be connected without /dev/h743.
+if [ -e /run/orangepi-flight-active ] || [ -e /dev/h743 ] || \
+   [ -e /dev/rfcomm0 ] || mavlink_status_active || \
+   systemctl is-active --quiet mavlink-router.service || \
+   pgrep -af 'arducopter|arduplane|ardupilot' >/dev/null; then
+    logger -t orangepi-maintenance "Skipped: flight hardware/session is active"
+    publish_state waiting_for_home_wifi "Update check paused while flight hardware or a flight session is active."
+    exit 0
+fi
+
+ifindex=$(cat /sys/class/net/wlan0/ifindex)
+lease=/run/systemd/netif/leases/$ifindex
+lease_stamp=$(stat -c %Y "$lease" 2>/dev/null || echo 0)
+bssid=$(/usr/sbin/iw dev wlan0 link 2>/dev/null | awk '/Connected to/ {print $3; exit}')
+boot_id=$(cat /proc/sys/kernel/random/boot_id)
+token=$(printf '%s:%s:%s:%s' "$boot_id" "$ssid_hash" "$bssid" "$lease_stamp" | sha256sum | awk '{print $1}')
+mkdir -p "$state/runs"
+chmod 700 "$state" "$state/runs"
+if [ "$force" != true ] && [ -r "$state/retry-not-before" ]; then
+    retry_not_before=$(cat "$state/retry-not-before" 2>/dev/null || echo 0)
+    case "$retry_not_before" in (*[!0-9]*|'') retry_not_before=0 ;; esac
+    if [ "$(date +%s)" -lt "$retry_not_before" ]; then
+        exit 0
+    fi
+fi
+if [ "$force" != true ] && [ -r "$state/last-connection-token" ] && [ "$(cat "$state/last-connection-token")" = "$token" ]; then
+    if [ ! -r "$public_state" ]; then
+        previous="$state/current/upgradable-after.txt"
+        previous_count=0
+        if [ -r "$previous" ]; then
+            previous_count=$(tail -n +2 "$previous" | sed '/^[[:space:]]*$/d' | wc -l)
+        fi
+        publish_state complete "The safe update check already completed for this home-Wi-Fi connection." "$previous_count" "$previous"
+    fi
+    exit 0
+fi
+
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+run="$state/runs/$stamp"
+mkdir -m 700 "$run"
+marker_identity=''
+cleanup() {
+    [ -n "$marker_identity" ] || return 0
+    /usr/bin/python3 - "$active" "$marker_identity" <<'MARKER_CLEANUP'
+import os, stat, sys
+p, identity = sys.argv[1:]
+try:
+    s = os.lstat(p)
+except FileNotFoundError:
+    raise SystemExit(0)
+if not stat.S_ISREG(s.st_mode) or s.st_uid != 0 or f'{s.st_dev}:{s.st_ino}' != identity:
+    raise SystemExit('Maintenance marker identity changed; preserved.')
+os.unlink(p)
+MARKER_CLEANUP
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+marker_identity=$(/usr/bin/python3 - "$active" <<'MARKER_CREATE'
+import os, sys
+fd = os.open(sys.argv[1], os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+try:
+    os.write(fd, b'home-maintenance\n')
+    os.fsync(fd)
+    s = os.fstat(fd)
+    print(f'{s.st_dev}:{s.st_ino}')
+finally:
+    os.close(fd)
+MARKER_CREATE
+) || exit 1
+exec > >(tee "$run/maintenance.log") 2>&1
+
+echo "Home maintenance started: $(date --iso-8601=seconds)"
+publish_state checking "Checking trusted package sources for available updates."
+echo "Kernel: $(uname -r)"
+dpkg-query -W -f='${binary:Package}\t${Version}\n' | sort > "$run/packages-before.tsv"
+apt list --upgradable 2>/dev/null > "$run/upgradable-before.txt" || true
+pending_before=$(tail -n +2 "$run/upgradable-before.txt" | sed '/^[[:space:]]*$/d' | wc -l)
+publish_state checking "Package lists are being refreshed." "$pending_before" "$run/upgradable-before.txt"
+cp -a /etc/apt/sources.list /etc/apt/sources.list.d "$run/" 2>/dev/null || true
+
+status=success
+if ! apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 \
+        -o Acquire::https::Timeout=30 update; then
+    status=apt_update_failed
+fi
+
+if [ "$status" = success ]; then
+    # Policy permits Debian security updates only. Kernel, bootloader, firmware,
+    # and board-driver packages are inventoried but require a controlled review.
+    publish_state installing_security "Installing eligible Debian security updates. Board firmware stays review-only." "$pending_before" "$run/upgradable-before.txt"
+    if ! unattended-upgrade --verbose; then
+        status=security_upgrade_failed
+    fi
+fi
+
+dpkg-query -W -f='${binary:Package}\t${Version}\n' | sort > "$run/packages-after.tsv"
+apt list --upgradable 2>/dev/null > "$run/upgradable-after.txt" || true
+pending_after=$(tail -n +2 "$run/upgradable-after.txt" | sed '/^[[:space:]]*$/d' | wc -l)
+diff -u "$run/packages-before.tsv" "$run/packages-after.tsv" > "$run/package-changes.diff" || true
+if ! dpkg --audit > "$run/dpkg-audit.txt" 2>&1 || [ -s "$run/dpkg-audit.txt" ]; then
+    status=dpkg_audit_failed
+fi
+needrestart -b > "$run/needrestart.txt" 2>&1 || true
+if [ -e /var/run/reboot-required ]; then
+    cp /var/run/reboot-required "$run/"
+    cp /var/run/reboot-required.pkgs "$run/" 2>/dev/null || true
+fi
+
+publish_state verifying "Updates checked; running the system integrity verification." "$pending_after" "$run/upgradable-after.txt"
+if /usr/local/sbin/orangepi-100-check > "$run/integrity-check.txt" 2>&1; then
+    integrity=pass
+else
+    integrity=fail
+    status=integrity_check_failed
+fi
+
+cat > "$run/summary.json" <<EOF
+{
+  "schema": 1,
+  "started_utc": "$stamp",
+  "status": "$status",
+  "integrity": "$integrity",
+  "network_scope": "configured_trusted_wifi_only",
+  "automatic_update_scope": "debian_security_user_space",
+  "automatic_reboot": false,
+  "flight_controller_active": false
+}
+EOF
+find "$run" -type f -exec chmod 600 {} +
+find "$run" -type d -exec chmod 700 {} +
+ln -sfn "$run" "$state/current"
+logger -t orangepi-maintenance "Completed home maintenance: $status ($run)"
+echo "Home maintenance completed: $status"
+if [ "$status" = success ]; then
+    printf '%s\n' "$token" > "$state/last-connection-token"
+    chmod 600 "$state/last-connection-token"
+    rm -f "$state/retry-not-before"
+    publish_state complete "Update check and integrity verification completed successfully." "$pending_after" "$run/upgradable-after.txt"
+else
+    printf '%s\n' "$(( $(date +%s) + 900 ))" > "$state/retry-not-before"
+    chmod 600 "$state/retry-not-before"
+    publish_state error "The latest maintenance check needs attention; no unsafe automatic recovery was attempted." "$pending_after" "$run/upgradable-after.txt"
+fi
+[ "$status" = success ]

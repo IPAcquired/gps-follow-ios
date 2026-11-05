@@ -1,0 +1,577 @@
+#!/usr/bin/python3
+"""Read-only MAVLink status monitor with fresh connection/flight epochs."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+import argparse
+import json
+import math
+import os
+from pathlib import Path
+import tempfile
+import time
+import uuid
+
+from pymavlink import mavutil
+
+
+CONFIG = Path(os.environ.get("ORANGEPI_MAVLINK_MONITOR_CONFIG", "/etc/orangepi-mavlink-monitor.json"))
+STATUS = Path(os.environ.get("ORANGEPI_MAVLINK_MONITOR_STATUS", "/run/orangepi-mavlink/status.json"))
+SEVERITY = ("emergency", "alert", "critical", "error", "warning", "notice", "info", "debug")
+BATTERY_FRESH_SECONDS = 5.0
+SENSOR_FRESH_SECONDS = {
+    "SCALED_IMU": 1.0, "SCALED_IMU2": 1.0, "SCALED_IMU3": 1.0,
+    "RAW_IMU": 1.0, "HIGHRES_IMU": 1.0, "ATTITUDE": 1.0,
+    "SCALED_PRESSURE": 1.0, "SCALED_PRESSURE2": 1.0, "SCALED_PRESSURE3": 1.0,
+    "GPS_RAW_INT": 2.0, "GLOBAL_POSITION_INT": 1.0, "VFR_HUD": 1.0,
+    "DISTANCE_SENSOR": 1.0, "RC_CHANNELS": 2.0, "RADIO_STATUS": 5.0,
+}
+MAX_SENSOR_RECORDS = 64
+MAX_SENSOR_INSTANCES_PER_KIND = 8
+MAX_CONFIG_CHARACTERS = 65536
+MAX_CONFIG_TRANSPORTS = 16
+
+
+def atomic_json(value: dict) -> None:
+    expire_sensor_telemetry(value)
+    # Publication freshness is distinct from the heartbeat/sensor clocks. An
+    # idle UART must not keep an old publication timestamp forever.
+    value['updated_unix'] = time.time()
+    value['updated_utc'] = datetime.now(timezone.utc).isoformat()
+    STATUS.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=".status.", dir=STATUS.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, separators=(",", ":"), allow_nan=False)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, STATUS)
+    except Exception:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+        raise
+
+
+def fresh_state(reason: str, transport: str = "none") -> dict:
+    return {
+        "schema": 1,
+        "connected": False,
+        "reason": reason,
+        "transport": transport,
+        "connection_id": str(uuid.uuid4()),
+        "flight_session_id": None,
+        "armed": False,
+        "mode": "unknown",
+        "system_status": "unknown",
+        "battery": {},
+        "batteries": {},
+        "battery_state": "not_received",
+        "h743_source": None,
+        "heartbeat_updated_unix": None,
+        "last_heartbeat_unix": None,
+        "gps": {},
+        "motion": {},
+        "attitude": {},
+        "sensors": {},
+        "sensor_authority": "advisory_receive_only_not_avoidance_qualified",
+        "health": {},
+        "messages": [],
+        "authority": "read_only_no_mavlink_transmit",
+        "updated_utc": datetime.now(timezone.utc).isoformat(),
+        "updated_unix": time.time(),
+    }
+
+
+def clean(value, scale: float = 1.0, missing: tuple[int, ...] = ()):
+    if isinstance(value, bool): return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(number) or int(number) in missing:
+        return None
+    return round(number / scale, 3)
+
+
+def validate_config(config: dict) -> dict:
+    """Validate optional configuration before probing or opening any transport."""
+    if type(config) is not dict:
+        raise ValueError("Monitor configuration must be an object")
+    timeout = config.get("heartbeat_timeout_seconds", 5.0)
+    if type(timeout) not in (int, float):
+        raise ValueError("Heartbeat timeout must be a positive finite number")
+    try:
+        timeout = float(timeout)
+    except (ValueError, OverflowError):
+        raise ValueError("Heartbeat timeout must be a positive finite number") from None
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError("Heartbeat timeout must be a positive finite number")
+    selected = (config.get("target_system", 1), config.get("target_component", 1))
+    if any(type(value) is not int or not 1 <= value <= 255 for value in selected):
+        raise ValueError("A valid selected H743 system/component identity is required")
+    items = config.get("transports", [])
+    if type(items) is not list or len(items) > MAX_CONFIG_TRANSPORTS:
+        raise ValueError("Transports must be a bounded list")
+    transports = []
+    for item in items:
+        if type(item) is not dict or type(item.get("enabled", True)) is not bool:
+            raise ValueError("Transport enabled must be a boolean")
+        checked = dict(item)
+        checked["enabled"] = item.get("enabled", True)
+        if checked["enabled"]:
+            device, baud = item.get("device", ""), item.get("baud", 115200)
+            if type(device) is not str or not device or "\x00" in device:
+                raise ValueError("Enabled transport requires a valid device path")
+            if type(baud) is not int or baud <= 0:
+                raise ValueError("Enabled transport baud must be a positive integer")
+            checked["device"], checked["baud"] = device, baud
+        transports.append(checked)
+    return {**config, "heartbeat_timeout_seconds": timeout,
+            "target_system": selected[0], "target_component": selected[1],
+            "transports": transports}
+
+
+def read_config() -> dict:
+    with CONFIG.open("r", encoding="utf-8") as handle:
+        contents = handle.read(MAX_CONFIG_CHARACTERS + 1)
+    if len(contents) > MAX_CONFIG_CHARACTERS:
+        raise ValueError("Monitor configuration exceeds its size bound")
+    def invalid_constant(value):
+        raise ValueError("Nonfinite JSON constants are invalid")
+    return validate_config(json.loads(contents, parse_constant=invalid_constant))
+
+
+def serial_transport(config: dict, cooling: set[tuple[str, int]] | None = None) -> tuple[str, int] | None:
+    for item in validate_config(config)["transports"]:
+        if item["enabled"] is not True:
+            continue
+        device = item["device"]
+        if cooling and (device, item["baud"]) in cooling:
+            continue
+        try:
+            present = Path(device).exists()
+        except (OSError, ValueError):
+            present = False
+        if present:
+            return device, item["baud"]
+    return None
+
+
+def message_source(message) -> tuple[int, int] | None:
+    """Unpacked fixture objects use source zero; runtime pins its real source."""
+    try:
+        system = message.get_srcSystem() if hasattr(message, 'get_srcSystem') else message.getSrcSystem() if hasattr(message, 'getSrcSystem') else 0
+        component = message.get_srcComponent() if hasattr(message, 'get_srcComponent') else message.getSrcComponent() if hasattr(message, 'getSrcComponent') else 0
+    except (AttributeError, TypeError, ValueError): return None
+    if type(system) is not int or type(component) is not int or not 0 <= system <= 255 or not 0 <= component <= 255: return None
+    return system, component
+
+
+def battery_voltage(message):
+    """Unknown voltage stays unknown, never copied from another message/pack."""
+    values = []
+    for raw in list(message.voltages)[:10] + list(getattr(message, 'voltages_ext', []))[:4]:
+        value = clean(raw, missing=(0, 65535))
+        if value is not None and 0 < value < 65535: values.append(value)
+    return round(sum(values) / 1000, 3) if values else None
+
+
+def battery_record(state: dict, source: tuple[int, int], battery_id: int, kind: str, **metrics) -> None:
+    stamp = time.time()
+    record = {'source_system_id': source[0], 'source_component_id': source[1],
+              'battery_id': battery_id, 'identity_basis': 'monitor_slot_not_physical_pack',
+              'message_type': kind, 'updated_unix': stamp, 'stale_after_ms': 5000,
+              **metrics}
+    state['batteries'][f'{source[0]}:{source[1]}:{battery_id}'] = record
+    if battery_id == 0:
+        state['battery'] = dict(record)
+        state['battery_state'] = 'fresh'
+
+
+def wire_integer(value, lower: int, upper: int, missing: tuple[int, ...] = ()):
+    """Validate the declared wire type, without accepting booleans/strings/NaNs."""
+    return value if type(value) is int and lower <= value <= upper and value not in missing else None
+
+
+def bounded_scalar(value, lower: float, upper: float, scale: float = 1.0):
+    if type(value) not in (int, float) or not lower <= value <= upper or not math.isfinite(value):
+        return None
+    return round(value / scale, 6)
+
+
+def sensor_record(state: dict, source: tuple[int, int], kind: str, instance: int,
+                  values: dict, units: dict, updated_fields: set[str] | None = None) -> bool:
+    """Bounded independent records; HIGHRES only refreshes explicitly updated fields."""
+    records = state.setdefault("sensors", {})
+    key = f"{kind}:{instance}"
+    if key not in records and (len(records) >= MAX_SENSOR_RECORDS or
+            sum(record.get("message_type") == kind for record in records.values()) >= MAX_SENSOR_INSTANCES_PER_KIND):
+        return False
+    stamp = time.time()
+    previous = records.get(key, {})
+    old_values = previous.get("values", {})
+    old_stamps = previous.get("field_updated_unix", {})
+    stored, timestamps = {}, {}
+    for name, value in values.items():
+        changed = updated_fields is None or name in updated_fields
+        stored[name] = value if changed else old_values.get(name)
+        timestamps[name] = stamp if changed else old_stamps.get(name)
+    records[key] = {
+        "message_type": kind, "instance": instance,
+        "source_system_id": source[0], "source_component_id": source[1],
+        "identity_basis": "mavlink_message_slot_not_physical_hardware",
+        "freshness_basis": "local_arrival_not_sensor_acquisition_time",
+        "updated_unix": stamp, "stale_after_ms": int(SENSOR_FRESH_SECONDS[kind] * 1000),
+        "values": stored, "units": units, "field_updated_unix": timestamps,
+    }
+    expire_sensor_telemetry(state, stamp)
+    return True
+
+
+def expire_sensor_telemetry(state: dict, now: float | None = None) -> None:
+    """Heartbeat/other sensors cannot keep old samples or HIGHRES fields fresh."""
+    stamp = time.time() if now is None else now
+    for record in state.get("sensors", {}).values():
+        ttl = SENSOR_FRESH_SECONDS.get(record.get("message_type"), 0.0)
+        fresh = {}
+        for name, value in record.get("values", {}).items():
+            arrived = record.get("field_updated_unix", {}).get(name)
+            current = (type(arrived) in (int, float) and math.isfinite(arrived)
+                       and type(stamp) in (int, float) and math.isfinite(stamp)
+                       and 0 <= stamp - arrived <= ttl and value is not None)
+            if not current:
+                record["values"][name] = None
+            fresh[name] = current
+        record["field_fresh"] = fresh
+        if record.get("message_type") == "DISTANCE_SENSOR":
+            record["fresh"] = fresh.get("current_distance", False)
+        elif record.get("message_type") == "RC_CHANNELS":
+            record["fresh"] = any(fresh.get(f"chan{index}_raw", False) for index in range(1, 19))
+        else:
+            record["fresh"] = any(fresh.values())
+        record["state"] = "fresh" if record["fresh"] else "stale_or_unknown"
+        if record.get("message_type") == "ATTITUDE":
+            state["attitude"] = dict(record["values"])
+    records = state.get("sensors", {})
+    raw_gps = records.get("GPS_RAW_INT:0", {}).get("values", {})
+    global_position = records.get("GLOBAL_POSITION_INT:0", {}).get("values", {})
+    vfr = records.get("VFR_HUD:0", {}).get("values", {})
+    if raw_gps or global_position:
+        state["gps"] = dict(raw_gps)
+        state["gps"].update({name: value for name, value in global_position.items()
+                             if name not in {"north_mps", "east_mps", "down_mps"}})
+    if global_position or vfr:
+        state["motion"] = {name: value for name, value in global_position.items()
+                           if name in {"north_mps", "east_mps", "down_mps"}}
+        state["motion"].update(vfr)
+
+
+def update_sensor_message(state: dict, message, source: tuple[int, int], kind: str) -> bool:
+    """Official common.xml units only. No stream requests, ACKs, or control writes."""
+    get = lambda name, default=None: getattr(message, name, default)
+    values, units = {}, {}
+    instance, changed = 0, None
+    if kind in {"SCALED_IMU", "SCALED_IMU2", "SCALED_IMU3", "RAW_IMU"}:
+        if kind == "RAW_IMU":
+            instance = wire_integer(get("id", 0), 0, 255)
+            if instance is None: return False
+        for suffix, unit in (("acc", "mG"), ("gyro", "mrad/s"), ("mag", "mgauss")):
+            for axis in "xyz":
+                name = axis + suffix
+                values[name] = wire_integer(get(name), -32768, 32767)
+                units[name] = "raw_unscaled_no_physical_unit" if kind == "RAW_IMU" else unit
+        temperature = wire_integer(get("temperature", 0), -27315, 32767, (0,))
+        values["temperature"] = temperature / 100 if temperature is not None else None
+        units["temperature"] = "degC"
+    elif kind == "HIGHRES_IMU":
+        instance = wire_integer(get("id", 0), 0, 255)
+        mask = wire_integer(get("fields_updated"), 0, 0x1FFF)
+        if instance is None or mask is None: return False
+        definitions = [
+            (axis + suffix, unit, low, high)
+            for suffix, unit, low, high in (("acc", "m/s/s", -1000., 1000.),
+                                          ("gyro", "rad/s", -1000., 1000.),
+                                          ("mag", "gauss", -100., 100.)) for axis in "xyz"
+        ] + [("abs_pressure", "hPa", 0., 2000.), ("diff_pressure", "hPa", -2000., 2000.),
+             ("pressure_alt", "unspecified_by_common_xml", -100000., 100000.),
+             ("temperature", "degC", -273.15, 500.)]
+        changed = set()
+        for bit, (name, unit, low, high) in enumerate(definitions):
+            values[name] = bounded_scalar(get(name), low, high)
+            units[name] = unit
+            if mask & (1 << bit): changed.add(name)
+    elif kind in {"SCALED_PRESSURE", "SCALED_PRESSURE2", "SCALED_PRESSURE3"}:
+        values = {"press_abs": bounded_scalar(get("press_abs"), 0., 2000.),
+                  "press_diff": bounded_scalar(get("press_diff"), -2000., 2000.)}
+        units = {"press_abs": "hPa", "press_diff": "hPa"}
+        for name in ("temperature", "temperature_press_diff"):
+            value = wire_integer(get(name), -27315, 32767,
+                                 (0,) if name == "temperature_press_diff" else ())
+            values[name] = value / 100 if value is not None else None
+            units[name] = "degC"
+    elif kind == "GPS_RAW_INT":
+        fix = wire_integer(get("fix_type"), 0, 8)
+        dilution = wire_integer(get("eph"), 1, 65534)
+        accuracy = wire_integer(get("h_acc"), 1, 0xFFFFFFFF)
+        altitude = wire_integer(get("alt"), -0x80000000, 0x7FFFFFFF)
+        values = {"fix_type": fix, "satellites": wire_integer(get("satellites_visible"), 0, 254),
+                  "hdop": dilution / 100 if dilution is not None else None,
+                  "horizontal_accuracy_m": accuracy / 1000 if accuracy is not None else None,
+                  "altitude_m": altitude / 1000 if altitude is not None and fix is not None and fix >= 3 else None}
+        units = {"fix_type": "GPS_FIX_TYPE_enum", "satellites": "count", "hdop": "dimensionless",
+                 "horizontal_accuracy_m": "m_from_h_acc_not_eph", "altitude_m": "m_MSL"}
+    elif kind == "GLOBAL_POSITION_INT":
+        for name, wire_name, low, high, scale, unit in (
+                ("latitude", "lat", -900000000, 900000000, 10000000., "deg"),
+                ("longitude", "lon", -1800000000, 1800000000, 10000000., "deg"),
+                ("relative_altitude_m", "relative_alt", -0x80000000, 0x7FFFFFFF, 1000., "m"),
+                ("heading_deg", "hdg", 0, 35999, 100., "deg"),
+                ("north_mps", "vx", -32768, 32767, 100., "m/s"),
+                ("east_mps", "vy", -32768, 32767, 100., "m/s"),
+                ("down_mps", "vz", -32768, 32767, 100., "m/s")):
+            value = wire_integer(get(wire_name), low, high)
+            values[name] = round(value / scale, 6) if value is not None else None
+            units[name] = unit
+    elif kind == "VFR_HUD":
+        values = {"airspeed_mps": bounded_scalar(get("airspeed"), 0., 1000.),
+                  "groundspeed_mps": bounded_scalar(get("groundspeed"), 0., 1000.),
+                  "heading_deg": wire_integer(get("heading"), 0, 360),
+                  "throttle_percent": wire_integer(get("throttle"), 0, 100),
+                  "altitude_m": bounded_scalar(get("alt"), -100000., 100000.),
+                  "climb_mps": bounded_scalar(get("climb"), -1000., 1000.)}
+        units = {"airspeed_mps": "m/s", "groundspeed_mps": "m/s", "heading_deg": "deg",
+                 "throttle_percent": "%", "altitude_m": "m_MSL", "climb_mps": "m/s"}
+    elif kind == "RADIO_STATUS":
+        for name in ("rssi", "remrssi", "noise", "remnoise"):
+            values[name] = wire_integer(get(name), 0, 254)
+            units[name] = "device_dependent_not_dBm"
+        values["txbuf"] = wire_integer(get("txbuf"), 0, 100)
+        units["txbuf"] = "%"
+        for name in ("rxerrors", "fixed"):
+            values[name] = wire_integer(get(name), 0, 65535)
+            units[name] = "count_since_boot_may_wrap"
+    elif kind == "RC_CHANNELS":
+        count = wire_integer(get("chancount"), 0, 255)
+        if count is None: return False
+        values["chancount"] = count
+        units["chancount"] = "channels_total_only_first_18_available"
+        for channel in range(1, 19):
+            name = f"chan{channel}_raw"
+            values[name] = wire_integer(get(name), 0, 65534) if channel <= count else None
+            units[name] = "us"
+        values["rssi"] = wire_integer(get("rssi"), 0, 254)
+        units["rssi"] = "device_dependent_not_dBm"
+    elif kind == "DISTANCE_SENSOR":
+        instance = wire_integer(get("id"), 0, 255)
+        if instance is None: return False
+        low = wire_integer(get("min_distance"), 0, 65535)
+        high = wire_integer(get("max_distance"), 0, 65535)
+        distance = wire_integer(get("current_distance"), 0, 65535)
+        quality = wire_integer(get("signal_quality", 0), 0, 100)
+        valid = (low is not None and high is not None and high > low and distance is not None
+                 and low <= distance <= high and quality is not None and quality != 1)
+        values = {"min_distance": low, "max_distance": high,
+                  "current_distance": distance if valid else None,
+                  "signal_quality": quality if quality not in (None, 0) else None,
+                  "covariance": wire_integer(get("covariance"), 0, 254),
+                  "type": wire_integer(get("type"), 0, 255),
+                  "orientation": wire_integer(get("orientation"), 0, 255)}
+        units = {"min_distance": "cm", "max_distance": "cm", "current_distance": "cm",
+                 "signal_quality": "%_1_invalid_0_unknown", "covariance": "cm^2",
+                 "type": "MAV_DISTANCE_SENSOR_enum", "orientation": "MAV_SENSOR_ORIENTATION_enum"}
+        for name in ("horizontal_fov", "vertical_fov"):
+            value = bounded_scalar(get(name), 0., 2 * math.pi)
+            values[name] = value if value else None
+            units[name] = "rad"
+    elif kind == "ATTITUDE":
+        for name in ("roll", "pitch", "yaw"):
+            radians = bounded_scalar(get(name), -math.pi - 1e-6, math.pi + 1e-6)
+            values[name + "_deg"] = round(math.degrees(radians), 2) if radians is not None else None
+            units[name + "_deg"] = "deg"
+    else:
+        return False
+    return sensor_record(state, source, kind, instance, values, units, changed)
+
+
+def update_message(state: dict, message) -> bool:
+    kind = message.get_type()
+    source = message_source(message)
+    if source is None: return False
+    selected = state.get('h743_source')
+    if kind == 'HEARTBEAT':
+        if message.autopilot != mavutil.mavlink.MAV_AUTOPILOT_ARDUPILOTMEGA or message.type == mavutil.mavlink.MAV_TYPE_GCS: return False
+        expected = state.get('expected_source')
+        if expected and source != (expected['system_id'], expected['component_id']): return False
+        if selected is None:
+            selected = {'system_id': source[0], 'component_id': source[1]}
+            state['h743_source'] = selected
+    if selected is None or source != (selected['system_id'], selected['component_id']): return False
+    if kind == "HEARTBEAT":
+        armed = bool(message.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
+        if armed and not state["armed"]:
+            state["flight_session_id"] = str(uuid.uuid4())
+            state["messages"] = []
+        state["armed"] = armed
+        state["mode"] = mavutil.mode_string_v10(message)
+        state["system_status"] = {
+            0: "uninitialized", 1: "booting", 2: "calibrating", 3: "standby",
+            4: "active", 5: "critical", 6: "emergency", 7: "poweroff",
+            8: "flight termination",
+        }.get(int(message.system_status), f"status-{message.system_status}")
+        state["connected"] = True
+        state["reason"] = "heartbeat_received"
+        state['heartbeat_updated_unix'] = time.time()
+        state['last_heartbeat_unix'] = state['heartbeat_updated_unix']
+    elif kind == "SYS_STATUS":
+        primary = state['batteries'].get(f'{source[0]}:{source[1]}:0', {})
+        if not (primary.get('message_type') == 'BATTERY_STATUS' and 0 <= time.time() - primary.get('updated_unix', 0) <= BATTERY_FRESH_SECONDS):
+            battery_record(state, source, 0, kind,
+                voltage_v=clean(message.voltage_battery, 1000, (0, 65535)),
+                current_a=clean(message.current_battery, 100, (-1,)),
+                remaining_percent=clean(message.battery_remaining, 1, (-1,)),
+                consumed_mah=None)
+        state["health"].update({
+            "present_mask": int(message.onboard_control_sensors_present),
+            "enabled_mask": int(message.onboard_control_sensors_enabled),
+            "healthy_mask": int(message.onboard_control_sensors_health),
+            "communication_drop_percent": clean(message.drop_rate_comm, 100),
+            "errors": [int(message.errors_count1), int(message.errors_count2), int(message.errors_count3), int(message.errors_count4)],
+        })
+    elif kind == "BATTERY_STATUS":
+        battery_id = getattr(message, 'id', 0)
+        if type(battery_id) is not int or not 0 <= battery_id <= 255: return False
+        battery_record(state, source, battery_id, kind,
+            voltage_v=battery_voltage(message), current_a=clean(message.current_battery, 100, (-1,)),
+            remaining_percent=clean(message.battery_remaining, 1, (-1,)),
+            consumed_mah=clean(message.current_consumed, 1, (-1,)))
+    elif kind in SENSOR_FRESH_SECONDS:
+        if not update_sensor_message(state, message, source, kind): return False
+    elif kind == "EKF_STATUS_REPORT":
+        state["health"]["ekf"] = {
+            "flags": int(message.flags), "velocity_variance": clean(message.velocity_variance),
+            "horizontal_position_variance": clean(message.pos_horiz_variance),
+            "vertical_position_variance": clean(message.pos_vert_variance),
+            "compass_variance": clean(message.compass_variance),
+        }
+    elif kind == "STATUSTEXT":
+        level = int(message.severity)
+        text = str(message.text).rstrip("\x00").strip()[:180]
+        if text:
+            state["messages"].append({
+                "severity": SEVERITY[level] if 0 <= level < len(SEVERITY) else f"level-{level}",
+                "text": text, "time_utc": datetime.now(timezone.utc).isoformat(),
+            })
+            state["messages"] = state["messages"][-50:]
+    else:
+        return False
+    state["updated_utc"] = datetime.now(timezone.utc).isoformat()
+    state["updated_unix"] = time.time()
+    expire_sensor_telemetry(state)
+    return True
+
+
+def monitor(device: str, baud: int, heartbeat_timeout: float, expected_source: tuple[int, int] = (1, 1)) -> None:
+    if type(expected_source) is not tuple or len(expected_source) != 2:
+        raise ValueError("A valid selected H743 system/component identity is required")
+    # Direct callers receive the same fail-closed checks as the service entry.
+    checked = validate_config({"heartbeat_timeout_seconds": heartbeat_timeout,
+        "target_system": expected_source[0], "target_component": expected_source[1],
+        "transports": [{"device": device, "baud": baud, "enabled": True}]})
+    heartbeat_timeout = checked["heartbeat_timeout_seconds"]
+    state = fresh_state("opening_transport", device)
+    state['expected_source'] = {'system_id': expected_source[0], 'component_id': expected_source[1]}
+    atomic_json(state)
+    link = mavutil.mavlink_connection(device, baud=baud, autoreconnect=False, robust_parsing=True)
+    last_heartbeat = time.monotonic()
+    last_write = 0.0
+    try:
+        while True:
+            message = link.recv_match(blocking=True, timeout=0.5)
+            now = time.monotonic()
+            if message is not None and message.get_type() != "BAD_DATA":
+                accepted = update_message(state, message)
+                if accepted and message.get_type() == "HEARTBEAT":
+                    last_heartbeat = now
+            if now - last_heartbeat > heartbeat_timeout:
+                # A UART node exists even with the signal wire unplugged. It
+                # must not hold the receiver forever before the first valid HB.
+                raise TimeoutError("heartbeat_stale" if state["connected"] else "heartbeat_not_received")
+            if now - last_write >= 0.25:
+                atomic_json(state)
+                last_write = now
+    finally:
+        link.close()
+
+
+def self_test() -> int:
+    state = fresh_state("test", "synthetic")
+    heartbeat = mavutil.mavlink.MAVLink_heartbeat_message(
+        mavutil.mavlink.MAV_TYPE_QUADROTOR,
+        mavutil.mavlink.MAV_AUTOPILOT_ARDUPILOTMEGA,
+        mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED,
+        0,
+        mavutil.mavlink.MAV_STATE_ACTIVE,
+        3,
+    )
+    update_message(state, heartbeat)
+    passed = (
+        state["connected"] is True
+        and state["armed"] is True
+        and state["flight_session_id"] is not None
+        and state["authority"] == "read_only_no_mavlink_transmit"
+        and not any(key.endswith("command") for key in state)
+    )
+    result = {
+        "self_test": passed,
+        "connected": state["connected"],
+        "armed_transition_created_fresh_flight_session": state["flight_session_id"] is not None,
+        "authority": state["authority"],
+        "mavlink_transmit": False,
+    }
+    print(json.dumps(result, indent=2))
+    return 0 if passed else 1
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--self-test", action="store_true")
+    args = parser.parse_args()
+    if args.self_test:
+        return self_test()
+    try:
+        config = read_config()
+    except (OSError, UnicodeError, ValueError, TypeError, OverflowError, RecursionError):
+        # Replace any earlier healthy publication before exiting for the native
+        # service's restart/recovery policy; do not expose config text or paths.
+        atomic_json(fresh_state("configuration_invalid"))
+        return 2
+    heartbeat_timeout = config["heartbeat_timeout_seconds"]
+    expected_source = (config["target_system"], config["target_component"])
+    atomic_json(fresh_state("waiting_for_h743"))
+    retry_after: dict[tuple[str, int], float] = {}
+    while True:
+        now = time.monotonic()
+        retry_after = {key: until for key, until in retry_after.items() if until > now}
+        selected = serial_transport(config, set(retry_after))
+        if selected is None:
+            atomic_json(fresh_state("waiting_for_h743"))
+            time.sleep(2)
+            continue
+        device, baud = selected
+        try:
+            monitor(device, baud, heartbeat_timeout, expected_source)
+        except (OSError, RuntimeError, TimeoutError, ValueError) as exc:
+            atomic_json(fresh_state(str(exc)[:120], device))
+            # Only failed transports cool down. An active healthy fallback is
+            # never interrupted just to retry a preferred UART. Each new link
+            # still starts with empty telemetry and the selected source pin.
+            retry_after[(device, baud)] = time.monotonic() + max(2.0, heartbeat_timeout)
+            time.sleep(0.25)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

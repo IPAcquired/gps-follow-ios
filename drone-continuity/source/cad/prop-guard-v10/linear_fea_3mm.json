@@ -1,0 +1,95 @@
+{
+  "type": "coarse linear static tetrahedral FEA; isolated front half, ideally fixed mounting washers",
+  "rejected_invalid_tetrahedra": 0,
+  "tetra_volume_to_stl_volume_ratio": 1.0000000000000002,
+  "material_assumption": {
+    "E_MPa": 1500,
+    "poisson_ratio": 0.35,
+    "description": "homogeneous isotropic fully dense PETG; no printed anisotropy"
+  },
+  "mesh_target_mm": 3.0,
+  "nodes": 5252,
+  "tetrahedra": 19737,
+  "mesh_volume_cm3": 51.056619707673725,
+  "fixed_nodes": 284,
+  "loaded_area_mm2": 316.984276177428,
+  "cases": [
+    {
+      "case": "5 N inward",
+      "total_force_N": [
+        -5.0,
+        0.0,
+        0.0
+      ],
+      "loaded_mean_displacement_mm": 0.08337543563074468,
+      "maximum_displacement_mm": 0.09442140886558946,
+      "interior_volume_weighted_von_mises_p95_MPa": 0.1408020598614233,
+      "interior_volume_weighted_von_mises_p99_MPa": 0.3537229897037987,
+      "maximum_von_mises_MPa_mesh_dependent": 7.299378463497545,
+      "relative_free_residual": 2.4525339902212896e-06,
+      "maximum_stress_element_centre_mm": [
+        56.72535228729248,
+        23.914729595184326,
+        -5.472766757011414
+      ],
+      "reaction_error_N": 1.431602419084793e-06,
+      "minimum_deformed_rim_radius_mm": 152.53466095840668,
+      "minimum_blade_underside_gap_over_prop_disk_mm": 10.01272888258778,
+      "warning": "Deformed-geometry figures use linear displacement; large motions require nonlinear analysis."
+    },
+    {
+      "case": "5 N outward",
+      "total_force_N": [
+        5.0,
+        0.0,
+        0.0
+      ],
+      "loaded_mean_displacement_mm": 0.08337543563074468,
+      "maximum_displacement_mm": 0.09442140886558946,
+      "interior_volume_weighted_von_mises_p95_MPa": 0.1408020598614233,
+      "interior_volume_weighted_von_mises_p99_MPa": 0.3537229897037987,
+      "maximum_von_mises_MPa_mesh_dependent": 7.299378463497545,
+      "relative_free_residual": 2.4525339902212896e-06,
+      "maximum_stress_element_centre_mm": [
+        56.72535228729248,
+        23.914729595184326,
+        -5.472766757011414
+      ],
+      "reaction_error_N": 1.431602419084793e-06,
+      "minimum_deformed_rim_radius_mm": 152.5958299146656,
+      "minimum_blade_underside_gap_over_prop_disk_mm": 10.014959322383397,
+      "warning": "Deformed-geometry figures use linear displacement; large motions require nonlinear analysis."
+    },
+    {
+      "case": "5 N upward",
+      "total_force_N": [
+        0.0,
+        0.0,
+        5.0
+      ],
+      "loaded_mean_displacement_mm": 0.6366674958472819,
+      "maximum_displacement_mm": 0.6788237329792616,
+      "interior_volume_weighted_von_mises_p95_MPa": 0.4969416014788962,
+      "interior_volume_weighted_von_mises_p99_MPa": 0.9003365938508531,
+      "maximum_von_mises_MPa_mesh_dependent": 42.376855203375186,
+      "relative_free_residual": 1.4547838619235439e-05,
+      "maximum_stress_element_centre_mm": [
+        -20.041661738787088,
+        29.563746241956878,
+        -7.05168517469004
+      ],
+      "reaction_error_N": 1.2842196931309206e-05,
+      "minimum_deformed_rim_radius_mm": 152.52216417333952,
+      "minimum_blade_underside_gap_over_prop_disk_mm": 10.006906691694052,
+      "warning": "Deformed-geometry figures use linear displacement; large motions require nonlinear analysis."
+    }
+  ],
+  "limitations": [
+    "Rear-half coupling and splice behavior excluded.",
+    "Aircraft holes and real arm fastening unknown.",
+    "No nonlinear contact, buckling, damping, impact, fatigue, creep or spring-back test.",
+    "Ideal clamps and fully dense isotropic material can overestimate stiffness.",
+    "Stress peaks depend on mesh and boundary treatment.",
+    "This is a design screen, not flight approval."
+  ]
+}

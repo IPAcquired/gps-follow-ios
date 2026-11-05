@@ -1,0 +1,8 @@
+{
+  "version": "1.3.34",
+  "application_bytes": 1445008,
+  "application_sha256": "c9aff46733adcd6cf2ebb23445fb9a55b276d107083b6e690d15de38977b0274",
+  "application_offset": 65536,
+  "tests": 34,
+  "change": "Persistent ESP battery voltage and estimated charge in both orientations; battery-driven refresh on static pages; strict battery freshness."
+}

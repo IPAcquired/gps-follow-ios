@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+case "${1:-}" in
+  start)
+    if ! /usr/sbin/iw dev ap0 info >/dev/null 2>&1; then
+      /usr/sbin/iw phy phy0 interface add ap0 type __ap
+    fi
+    /usr/sbin/ip address replace 10.42.0.1/24 dev ap0
+    /usr/sbin/ip link set ap0 up
+    /usr/sbin/iw dev ap0 set txpower fixed 1200 2>/dev/null || true
+    ;;
+  stop)
+    /usr/sbin/ip link set ap0 down 2>/dev/null || true
+    /usr/sbin/iw dev ap0 del 2>/dev/null || true
+    ;;
+  *)
+    echo "Usage: $0 start|stop" >&2
+    exit 2
+    ;;
+esac

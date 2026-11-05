@@ -1,0 +1,2 @@
+# ESP32 CH340: opening/closing diagnostics must not pulse EN via HUPCL.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", RUN+="/usr/bin/stty -F /dev/%k -hupcl"

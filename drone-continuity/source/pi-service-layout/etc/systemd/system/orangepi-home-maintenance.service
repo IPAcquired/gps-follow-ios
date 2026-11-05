@@ -1,0 +1,14 @@
+[Unit]
+Description=Home-Wi-Fi-gated Orange Pi security maintenance and integrity report
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/orangepi-home-maintenance
+Nice=19
+CPUWeight=1
+IOWeight=1
+CPUAffinity=0 1 2 3 4 5
+IOSchedulingClass=idle
+TimeoutStartSec=45min

@@ -1,0 +1,298 @@
+#!/bin/bash
+set -euo pipefail
+
+readonly gadget_root=/sys/kernel/config/usb_gadget
+readonly udc_root=/sys/class/udc
+readonly gadget="${gadget_root}/orangepi-drone"
+readonly config="${gadget}/configs/c.1"
+
+select_udc() {
+    local controller requested
+    local -a controllers=()
+    shopt -s nullglob
+    for controller in "${udc_root}"/*; do
+        [[ -d ${controller} ]] && controllers+=("${controller}")
+    done
+    if [[ ${ORANGEPI_USB_UDC+x} ]]; then
+        requested=${ORANGEPI_USB_UDC}
+        # Accept an explicit controller basename, never a path or shell expression.
+        [[ ${#requested} -le 255 && ${requested} =~ ^[A-Za-z0-9_][A-Za-z0-9_.:-]*$ ]] || {
+            echo "ORANGEPI_USB_UDC must be a nonempty controller basename." >&2
+            return 1
+        }
+        for controller in "${controllers[@]}"; do
+            if [[ ${controller##*/} == "${requested}" ]]; then
+                printf '%s\n' "${requested}"
+                return 0
+            fi
+        done
+        echo "The explicitly selected USB device controller is not exposed. No controller was guessed." >&2
+        return 1
+    fi
+    [[ ${#controllers[@]} -eq 1 ]] || {
+        echo "Expected one USB device controller; found ${#controllers[@]}. No controller was guessed." >&2
+        return 1
+    }
+    printf '%s\n' "${controllers[0]##*/}"
+}
+
+assert_udc_available() {
+    local selected=${1} own_binding='' binding attribute controller function
+    if [[ -e ${gadget}/UDC ]]; then
+        [[ -r ${gadget}/UDC ]] || {
+            echo "Cannot inspect the existing management gadget binding." >&2
+            return 1
+        }
+        own_binding=$(< "${gadget}/UDC")
+    fi
+    [[ -z ${own_binding} || ${own_binding} == "${selected}" ]] || {
+        echo "The management gadget is already bound to another controller; it was not changed." >&2
+        return 1
+    }
+    shopt -s nullglob
+    for attribute in "${gadget_root}"/*/UDC; do
+        [[ -r ${attribute} ]] || {
+            echo "Cannot inspect an existing USB gadget binding." >&2
+            return 1
+        }
+        binding=$(< "${attribute}")
+        if [[ ${attribute} != "${gadget}/UDC" && -n ${binding} ]]; then
+            echo "Another USB gadget is bound; the management gadget was not changed." >&2
+            return 1
+        fi
+    done
+    # Native/legacy gadgets may occupy a UDC without any ConfigFS gadget entry.
+    for controller in "${udc_root}"/*; do
+        [[ -d ${controller} ]] || continue
+        attribute=${controller}/function
+        [[ -e ${attribute} ]] || continue
+        [[ -r ${attribute} ]] || {
+            echo "Cannot inspect a USB device controller's current function." >&2
+            return 1
+        }
+        function=$(< "${attribute}")
+        if [[ -n ${function} ]] && [[ ${controller##*/} != "${selected}" || ${own_binding} != "${selected}" ]]; then
+            echo "A USB device controller already has a gadget function; no binding was changed." >&2
+            return 1
+        fi
+    done
+    return 0
+}
+
+assert_gadget_complete() {
+    local serial=${1} attribute expected actual entry target
+    local -a entries=() links=()
+    # A linked RNDIS function retains its ConfigFS reference even while unbound.
+    # Its MAC stores then reject writes with EBUSY. Reuse only our exact, complete
+    # descriptors; never rewrite a linked function or guess how to repair one.
+    [[ -d ${gadget} && ! -L ${gadget} && $(stat -c '%u' -- "${gadget}") == 0
+        && -f ${gadget}/UDC && -r ${gadget}/UDC && ! -L ${gadget}/UDC
+        && -d ${gadget}/functions && ! -L ${gadget}/functions
+        && -d ${gadget}/configs && ! -L ${gadget}/configs
+        && -d ${gadget}/os_desc && ! -L ${gadget}/os_desc ]] || {
+        echo "Existing USB management gadget identity requires administrator review." >&2
+        return 1
+    }
+    for entry in "${gadget}/strings" "${gadget}/strings/0x409" \
+        "${config}" "${config}/strings" "${config}/strings/0x409" \
+        "${gadget}/functions/rndis.usb0/os_desc" \
+        "${gadget}/functions/rndis.usb0/os_desc/interface.rndis"; do
+        [[ -d ${entry} && ! -L ${entry} ]] || return 1
+    done
+    while IFS='|' read -r attribute expected; do
+        attribute=${gadget}/${attribute}
+        [[ -f ${attribute} && -r ${attribute} && ! -L ${attribute} ]] || {
+            echo "Existing USB management descriptors are incomplete or unexpected." >&2
+            return 1
+        }
+        # These kernel attributes include trailing NUL padding on some versions.
+        actual=$(tr -d '\000' < "${attribute}") || return 1
+        if [[ ${attribute} == "${gadget}/bcdUSB" ]]; then
+            # Vendor 6.6 composite.c GET_DESCRIPTOR updates this SAME field
+            # that ConfigFS shows: USB2, LPM, SS fallback or SuperSpeed. It
+            # persists after unbind. Accept only its four explicit outputs;
+            # do not rewrite a kernel-managed negotiated version on rebind.
+            case ${actual,,} in
+                0x0200|0x0201|0x0210|0x0320) continue ;;
+                *) echo "Existing USB management USB version is unexpected; it was not changed." >&2; return 1 ;;
+            esac
+        fi
+        if [[ ${expected} == 0x* || ${attribute} == */dev_addr || ${attribute} == */host_addr ]]; then
+            actual=${actual,,}
+            expected=${expected,,}
+        fi
+        [[ ${actual} == "${expected}" ]] || {
+            echo "Existing USB management descriptors differ; no attributes were rewritten." >&2
+            return 1
+        }
+    done <<'DESCRIPTORS'
+idVendor|0x1d6b
+idProduct|0x0104
+bcdUSB|0x0200
+bcdDevice|0x0100
+bDeviceClass|0xef
+bDeviceSubClass|0x02
+bDeviceProtocol|0x01
+strings/0x409/manufacturer|Orange Pi
+strings/0x409/product|Orange Pi Drone USB Link
+configs/c.1/strings/0x409/configuration|RNDIS Ethernet and serial console
+configs/c.1/MaxPower|250
+functions/rndis.usb0/dev_addr|02:50:00:00:00:02
+functions/rndis.usb0/host_addr|02:50:00:00:00:01
+os_desc/use|1
+os_desc/b_vendor_code|0xcd
+os_desc/qw_sign|MSFT100
+functions/rndis.usb0/os_desc/interface.rndis/compatible_id|RNDIS
+functions/rndis.usb0/os_desc/interface.rndis/sub_compatible_id|5162001
+DESCRIPTORS
+    attribute=${gadget}/strings/0x409/serialnumber
+    [[ -f ${attribute} && -r ${attribute} && ! -L ${attribute} ]] || return 1
+    actual=$(tr -d '\000' < "${attribute}") || return 1
+    [[ ${actual} == "${serial}" ]] || {
+        echo "Existing USB management serial identity differs; it was not changed." >&2
+        return 1
+    }
+    shopt -s nullglob
+    entries=("${gadget}/functions"/*)
+    [[ ${#entries[@]} -eq 2 ]] || return 1
+    for entry in "${entries[@]}"; do
+        [[ -d ${entry} && ! -L ${entry} ]] || return 1
+        [[ ${entry} == "${gadget}/functions/rndis.usb0" || ${entry} == "${gadget}/functions/acm.usb0" ]] || return 1
+    done
+    entries=("${gadget}/configs"/*)
+    [[ ${#entries[@]} -eq 1 && ${entries[0]} == "${config}" && -d ${config} && ! -L ${config} ]] || return 1
+    for target in "${gadget}/strings" "${config}/strings"; do
+        entries=("${target}"/*)
+        [[ ${#entries[@]} -eq 1 && ${entries[0]} == "${target}/0x409" && -d ${entries[0]} && ! -L ${entries[0]} ]] || return 1
+    done
+    links=()
+    for entry in "${config}"/*; do
+        [[ ! -L ${entry} ]] || links+=("${entry}")
+    done
+    [[ ${#links[@]} -eq 2 ]] || return 1
+    for entry in rndis.usb0 acm.usb0; do
+        [[ -L ${config}/${entry} && $(readlink -f -- "${config}/${entry}") == "${gadget}/functions/${entry}" ]] || return 1
+    done
+    links=()
+    for entry in "${gadget}/os_desc"/*; do
+        [[ ! -L ${entry} ]] || links+=("${entry}")
+    done
+    [[ ${#links[@]} -eq 1 && -L ${gadget}/os_desc/c.1 && $(readlink -f -- "${gadget}/os_desc/c.1") == "${config}" ]] || return 1
+}
+
+management_serial() {
+    local serial
+    serial=$(tr -d '\n' < /etc/machine-id | cut -c1-16) || return 1
+    [[ ${serial} =~ ^[0-9a-f]{16}$ ]] || {
+        echo "USB management serial identity is unavailable." >&2
+        return 1
+    }
+    printf '%s' "${serial}"
+}
+
+gadget_has_configuration() {
+    local -a entries=()
+    shopt -s nullglob
+    entries=("${gadget}/functions"/* "${gadget}/configs"/* "${gadget}/strings"/*)
+    [[ ${#entries[@]} -gt 0 ]] || { [[ -r ${gadget}/UDC ]] && [[ -n $(< "${gadget}/UDC") ]]; }
+}
+
+start_gadget() {
+    local udc serial attempt
+    local -a controllers=()
+    modprobe libcomposite
+    shopt -s nullglob
+    for attempt in {1..30}; do
+        controllers=("${udc_root}"/*)
+        [[ ${#controllers[@]} -eq 0 ]] || break
+        sleep 1
+    done
+    udc=$(select_udc) || return 1
+    mountpoint -q /sys/kernel/config || mount -t configfs none /sys/kernel/config
+    assert_udc_available "${udc}" || return 1
+    serial=$(management_serial) || return 1
+    if gadget_has_configuration; then
+        assert_gadget_complete "${serial}" || {
+            echo "Existing USB management configuration requires review; no descriptors were changed." >&2
+            return 1
+        }
+        if [[ $(< "${gadget}/UDC") == "${udc}" ]]; then
+            echo "Orange Pi USB management gadget is already bound."
+            return 0
+        fi
+        assert_udc_available "${udc}" || return 1
+        printf '%s' "${udc}" > "${gadget}/UDC"
+        echo "Orange Pi USB management gadget rebound using validated existing descriptors."
+        return 0
+    fi
+
+    mkdir -p "${gadget}"
+
+    # Linux Foundation's composite-gadget IDs are used by the kernel examples.
+    printf '0x1d6b' > "${gadget}/idVendor"
+    printf '0x0104' > "${gadget}/idProduct"
+    printf '0x0200' > "${gadget}/bcdUSB"
+    printf '0x0100' > "${gadget}/bcdDevice"
+    printf '0xEF' > "${gadget}/bDeviceClass"
+    printf '0x02' > "${gadget}/bDeviceSubClass"
+    printf '0x01' > "${gadget}/bDeviceProtocol"
+
+    mkdir -p "${gadget}/strings/0x409"
+    printf '%s' "${serial}" > "${gadget}/strings/0x409/serialnumber"
+    printf 'Orange Pi' > "${gadget}/strings/0x409/manufacturer"
+    printf 'Orange Pi Drone USB Link' > "${gadget}/strings/0x409/product"
+
+    mkdir -p "${config}/strings/0x409"
+    printf 'RNDIS Ethernet and serial console' > "${config}/strings/0x409/configuration"
+    printf '250' > "${config}/MaxPower"
+
+    mkdir -p "${gadget}/functions/rndis.usb0"
+    printf '02:50:00:00:00:02' > "${gadget}/functions/rndis.usb0/dev_addr"
+    printf '02:50:00:00:00:01' > "${gadget}/functions/rndis.usb0/host_addr"
+    mkdir -p "${gadget}/functions/acm.usb0"
+
+    # Microsoft OS descriptors allow Windows to select its built-in RNDIS driver.
+    printf '1' > "${gadget}/os_desc/use"
+    printf '0xcd' > "${gadget}/os_desc/b_vendor_code"
+    printf 'MSFT100' > "${gadget}/os_desc/qw_sign"
+    mkdir -p "${gadget}/functions/rndis.usb0/os_desc/interface.rndis"
+    printf 'RNDIS' > "${gadget}/functions/rndis.usb0/os_desc/interface.rndis/compatible_id"
+    printf '5162001' > "${gadget}/functions/rndis.usb0/os_desc/interface.rndis/sub_compatible_id"
+
+    [[ -L "${config}/rndis.usb0" ]] || ln -s "${gadget}/functions/rndis.usb0" "${config}/rndis.usb0"
+    [[ -L "${config}/acm.usb0" ]] || ln -s "${gadget}/functions/acm.usb0" "${config}/acm.usb0"
+    [[ -L "${gadget}/os_desc/c.1" ]] || ln -s "${config}" "${gadget}/os_desc/c.1"
+
+    assert_gadget_complete "${serial}" || return 1
+    assert_udc_available "${udc}" || return 1
+    printf '%s' "${udc}" > "${gadget}/UDC"
+}
+
+stop_gadget() {
+    [[ -d "${gadget}" ]] || return 0
+    # ConfigFS requires an actual write to unbind. A zero-byte printf only
+    # truncates the attribute and leaves the UDC attached.
+    printf '\n' > "${gadget}/UDC" 2>/dev/null || true
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+    case "${1:-start}" in
+        start) start_gadget ;;
+        stop) stop_gadget ;;
+        restart)
+            # Refuse an invalid/ambiguous/busy selection before disrupting a live link.
+            selected=$(select_udc) || exit 1
+            assert_udc_available "${selected}" || exit 1
+            if gadget_has_configuration; then
+                serial=$(management_serial) || exit 1
+                assert_gadget_complete "${serial}" || {
+                    echo "Existing USB configuration requires review; the current binding was preserved." >&2
+                    exit 1
+                }
+            fi
+            stop_gadget
+            start_gadget
+            ;;
+        *) echo "Usage: $0 {start|stop|restart}" >&2; exit 2 ;;
+    esac
+fi

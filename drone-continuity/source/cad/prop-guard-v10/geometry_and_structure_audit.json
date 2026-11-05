@@ -1,0 +1,272 @@
+{
+  "revision": "V10 lightweight PETG open semicircle with screw-on TPU strips",
+  "printer_bed_mm": [
+    256,
+    256
+  ],
+  "rim_inner_diameter_mm": 305.2,
+  "outer_diameter_with_TPU_mm": 335.5,
+  "parts": {
+    "PETG_Round_Mount_38p80mm": {
+      "bounds_mm": [
+        [
+          -63.79999923706055,
+          -19.399999618530273,
+          -9.0
+        ],
+        [
+          -25.0,
+          19.399999618530273,
+          -3.0
+        ]
+      ],
+      "size_mm": [
+        38.79999923706055,
+        38.79999923706055,
+        6.0
+      ],
+      "volume_mm3": 6662.405336319581,
+      "watertight": true,
+      "bodies": 1,
+      "maximum_disconnected_layer_regions": 1,
+      "supports_required": false,
+      "print_orientation": "flat bottom on bed"
+    },
+    "PETG_Core_Half_1": {
+      "bounds_mm": [
+        [
+          -63.79017639160156,
+          0.20000000298023224,
+          -19.0
+        ],
+        [
+          164.9996337890625,
+          164.9994354248047,
+          19.0
+        ]
+      ],
+      "size_mm": [
+        228.78981018066406,
+        164.79943542182446,
+        38.0
+      ],
+      "volume_mm3": 51056.61970767371,
+      "watertight": true,
+      "bodies": 1,
+      "maximum_disconnected_layer_regions": 3,
+      "supports_required": true,
+      "print_orientation": "rim top on bed; supports required"
+    },
+    "TPU_Screw_On_Strip_1_1": {
+      "bounds_mm": [
+        [
+          117.2563247680664,
+          0.34630799293518066,
+          7.650000095367432
+        ],
+        [
+          167.7496337890625,
+          118.27507781982422,
+          19.0
+        ]
+      ],
+      "size_mm": [
+        50.493309020996094,
+        117.92876982688904,
+        11.349999904632568
+      ],
+      "volume_mm3": 3965.9890985525903,
+      "watertight": true,
+      "bodies": 1,
+      "maximum_disconnected_layer_regions": 1,
+      "supports_required": false,
+      "print_orientation": "flat bottom on bed"
+    },
+    "TPU_Screw_On_Strip_1_2": {
+      "bounds_mm": [
+        [
+          0.4328847825527191,
+          117.19526672363281,
+          7.650000095367432
+        ],
+        [
+          118.33734893798828,
+          167.74942016601562,
+          19.0
+        ]
+      ],
+      "size_mm": [
+        117.90446415543556,
+        50.55415344238281,
+        11.349999904632568
+      ],
+      "volume_mm3": 3965.9895578728233,
+      "watertight": true,
+      "bodies": 1,
+      "maximum_disconnected_layer_regions": 1,
+      "supports_required": false,
+      "print_orientation": "flat bottom on bed"
+    },
+    "PETG_Core_Half_2": {
+      "bounds_mm": [
+        [
+          -63.79017639160156,
+          -164.9994354248047,
+          -19.0
+        ],
+        [
+          164.9996337890625,
+          -0.20000000298023224,
+          19.0
+        ]
+      ],
+      "size_mm": [
+        228.78981018066406,
+        164.79943542182446,
+        38.0
+      ],
+      "volume_mm3": 51056.61321227921,
+      "watertight": true,
+      "bodies": 1,
+      "maximum_disconnected_layer_regions": 3,
+      "supports_required": true,
+      "print_orientation": "rim top on bed; supports required"
+    },
+    "TPU_Screw_On_Strip_2_1": {
+      "bounds_mm": [
+        [
+          0.4328847825527191,
+          -167.74942016601562,
+          7.650000095367432
+        ],
+        [
+          118.33734893798828,
+          -117.19526672363281,
+          19.0
+        ]
+      ],
+      "size_mm": [
+        117.90446415543556,
+        50.55415344238281,
+        11.349999904632568
+      ],
+      "volume_mm3": 3965.9898177172477,
+      "watertight": true,
+      "bodies": 1,
+      "maximum_disconnected_layer_regions": 1,
+      "supports_required": false,
+      "print_orientation": "flat bottom on bed"
+    },
+    "TPU_Screw_On_Strip_2_2": {
+      "bounds_mm": [
+        [
+          117.2563247680664,
+          -118.27507781982422,
+          7.650000095367432
+        ],
+        [
+          167.7496337890625,
+          -0.34630799293518066,
+          19.0
+        ]
+      ],
+      "size_mm": [
+        50.493309020996094,
+        117.92876982688904,
+        11.349999904632568
+      ],
+      "volume_mm3": 3965.9891112351847,
+      "watertight": true,
+      "bodies": 1,
+      "maximum_disconnected_layer_regions": 1,
+      "supports_required": false,
+      "print_orientation": "flat bottom on bed"
+    },
+    "PETG_Rim_Splice_1": {
+      "bounds_mm": [
+        [
+          151.7640380859375,
+          -17.247196197509766,
+          5.349999904632568
+        ],
+        [
+          164.9990997314453,
+          17.247196197509766,
+          11.0
+        ]
+      ],
+      "size_mm": [
+        13.235061645507812,
+        34.49439239501953,
+        5.650000095367432
+      ],
+      "volume_mm3": 2227.682700756981,
+      "watertight": true,
+      "bodies": 1,
+      "maximum_disconnected_layer_regions": 1,
+      "supports_required": false,
+      "print_orientation": "flat bottom on bed"
+    }
+  },
+  "part_intersections": [],
+  "arm_intersections": [],
+  "motor_keepout_intersections": [],
+  "hardware_intersections": [],
+  "nominal_blade_underside_z_mm": 27,
+  "highest_part_z_mm": 19,
+  "static_vertical_clearance_mm": 8,
+  "mount_diameter_mm": 38.8,
+  "aircraft_holes": "User drills; mounting rigidity remains unverified",
+  "structural_screen": {
+    "type": "idealized constant I-section cantilever; not a load rating",
+    "assumed_modulus_MPa": 1500.0,
+    "span_mm": 230.0,
+    "section_mm": {
+      "width": 6.0,
+      "height": 22.0,
+      "web": 2.4,
+      "flange": 1.5
+    },
+    "vertical_second_moment_mm4": 3266.2999999999997,
+    "lateral_second_moment_mm4": 75.88799999999999,
+    "vertical_to_lateral_stiffness_ratio": 43.0410605102256,
+    "reference": "https://prusament.com/materials/prusament-petg/",
+    "load_cases": [
+      {
+        "tip_force_N": 2,
+        "nominal_vertical_bending_stress_MPa": 1.5491534764106176,
+        "ideal_single_beam_tip_deflection_mm": 1.65555997782064
+      },
+      {
+        "tip_force_N": 5,
+        "nominal_vertical_bending_stress_MPa": 3.8728836910265443,
+        "ideal_single_beam_tip_deflection_mm": 4.1388999445516
+      },
+      {
+        "tip_force_N": 10,
+        "nominal_vertical_bending_stress_MPa": 7.745767382053089,
+        "ideal_single_beam_tip_deflection_mm": 8.2777998891032
+      }
+    ],
+    "unresolved": [
+      "mount/drilled-hole strength",
+      "layer adhesion at tab-to-spoke neck",
+      "joint slip and PETG creep",
+      "TPU screw pull-through",
+      "impact and fatigue",
+      "printed settings and actual filament properties"
+    ]
+  },
+  "neighbor_spacing_screen": "Inner semicircle remains open. Actual neighboring guard placement is unverified; conflicting old motor spacing values were not used.",
+  "estimated_solid_mass_g": {
+    "PETG": 140.97421761542745,
+    "TPU": 19.036749102453413
+  },
+  "mass_reduction_from_v9_percent": 58.33714638406726,
+  "downwash_projection_screen": {
+    "v9_inside_prop_disk_mm2": 10913.0500290733,
+    "v10_inside_prop_disk_mm2": 5620.089067393049,
+    "area_reduction_percent": 48.50120678984655,
+    "limitation": "Plan-view blockage; no CFD, drag coefficient or propeller performance validation."
+  }
+}

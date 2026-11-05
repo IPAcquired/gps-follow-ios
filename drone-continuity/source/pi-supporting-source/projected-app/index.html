@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#071110">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Drone Companion">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <link rel="stylesheet" href="/style.css">
+  <title>Drone Companion</title>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#overview" data-view-target="overview" aria-label="Drone Companion overview">
+      <span class="brand-mark" aria-hidden="true"><i></i></span>
+      <span class="brand-copy"><b>Drone Companion</b><small>Orange Pi · advisory system</small></span>
+    </a>
+    <div class="top-actions">
+      <span id="activity" class="activity-pill" role="status" aria-live="polite"><i></i><span>Ready</span></span>
+      <button id="refresh" class="icon-button" type="button" aria-label="Refresh board status" title="Refresh board status">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7"/></svg>
+      </button>
+      <span id="connection" class="status-pill warn"><i></i><span>Connecting</span></span>
+    </div>
+  </header>
+
+  <main>
+    <section id="unlock" class="login-shell">
+      <div class="login-art" aria-hidden="true">
+        <div class="radar"><i></i><i></i><i></i><span></span></div>
+        <p>PRIVATE DRONE LINK</p>
+      </div>
+      <div class="login-card panel">
+        <p class="eyebrow">SECURE LOCAL ACCESS</p>
+        <h1>Connect to your companion</h1>
+        <p class="lede">Sign in over the private Wi-Fi link or the encrypted computer tunnel.</p>
+        <label>Username<input id="username" autocomplete="username" placeholder="Username"></label>
+        <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="Password"></label>
+        <button id="connect" class="primary wide" type="button">Connect now</button>
+        <p id="connect-progress" class="live-progress" role="status" aria-live="polite"><i></i><span>Ready to open your secure dashboard.</span></p>
+        <p id="login-error" class="form-message" role="alert"></p>
+        <div class="authority-note"><span class="shield">✓</span><span>The MicoAir H743 remains flight-authoritative. This panel cannot directly command motors.</span></div>
+      </div>
+    </section>
+
+    <div id="dashboard" class="app-shell" hidden>
+      <aside class="sidebar" aria-label="Primary navigation">
+        <div class="side-heading">CONTROL PANEL</div>
+        <nav class="side-nav">
+          <button class="nav-item active" type="button" data-view-target="overview"><span>OV</span><b>Overview</b></button>
+          <button class="nav-item" type="button" data-view-target="flight"><span>FL</span><b>Flight status</b></button>
+          <button class="nav-item" type="button" data-view-target="sensors"><span>SN</span><b>Sensors</b></button>
+          <button class="nav-item" type="button" data-view-target="control"><span>RC</span><b>Remote control</b></button>
+          <button class="nav-item" type="button" data-view-target="ai"><span>AI</span><b>Companion AI</b></button>
+          <button class="nav-item" type="button" data-view-target="logs"><span>LG</span><b>Flight logs</b></button>
+          <button class="nav-item" type="button" data-view-target="network"><span>WI</span><b>Network</b></button>
+        </nav>
+        <div class="side-status">
+          <p>FLIGHT AUTHORITY</p>
+          <strong><i></i> H743 protected</strong>
+          <small>Observation and advisory only</small>
+        </div>
+        <button id="forget" class="sign-out" type="button">Sign out</button>
+      </aside>
+
+      <div class="workspace">
+        <section class="view" data-view="network" hidden>
+          <div class="view-heading compact"><div><p class="eyebrow">CONNECTION OPTIONS</p><h1>Stay connected</h1><p class="subtitle">Home Wi-Fi, private hotspot, or encrypted USB link — no internet required for local controls.</p></div></div>
+          <article class="panel section-card">
+            <h2>Board Wi-Fi</h2><p id="wifi-current" class="card-note">Refresh to check the board connection.</p>
+            <div class="top-actions"><button id="wifi-refresh" type="button">Refresh networks</button><button id="wifi-scan" type="button">Scan nearby</button></div>
+            <label>Saved networks<select id="wifi-saved" aria-label="Saved board Wi-Fi networks" disabled></select></label>
+            <button id="wifi-connect" class="primary" type="button" disabled>Connect to selected network</button>
+            <p id="wifi-progress" class="form-message" role="status" aria-live="polite">Wi-Fi changes are bench-only. Disconnect flight hardware first.</p>
+            <ul id="wifi-nearby" aria-label="Nearby networks"></ul>
+          </article>
+          <article class="panel section-card">
+            <h2>Add a network</h2><p id="wifi-password-note" class="card-note">New passwords require the Windows app encrypted connection, including USB. Passwords are not saved in this browser.</p>
+            <form id="wifi-form" autocomplete="off">
+              <label>Network name<input id="wifi-ssid" maxlength="32" autocomplete="off" required></label>
+              <label>WPA2 password<input id="wifi-password" type="password" maxlength="63" autocomplete="new-password" required disabled></label>
+              <button id="wifi-save" class="primary" type="submit" disabled>Save network without switching</button>
+            </form>
+            <p class="card-note">Supports WPA2 personal networks and compatible transition networks. WPA3-only and enterprise networks need administrator setup. Existing networks and the update-trusted-network list are preserved.</p>
+          </article>
+          <article class="panel section-card"><h2>Field mode · no internet needed</h2><p>iPhone / iPad: open Settings → Wi-Fi, join A&gt;X&lt;L, choose to stay connected without internet, then open the companion app at 10.42.0.1:8090. Sign in for each new session. You must select the hotspot in iOS Settings; a web app cannot change your phone's Wi-Fi.</p><div class="top-actions"><button type="button" data-view-target="ai">Ask the local AI flight team</button><button type="button" data-view-target="logs">Review flight logs and suggestions</button><button id="wifi-updates" type="button">Check approved updates</button></div><p>Installed local Qwen AI, recorded BIN analysis, board status, and desktop input do not require internet. AI answers are advisory; they cannot change flight parameters or command the H743. Hosted Jev is online-only. New software updates require internet on a trusted network; this button requests the existing safe security-update check, not offline firmware flashing.</p><p>Windows: connect a data-capable USB cable to the board's gadget-capable port, then click Connect now. The app checks USB at 192.168.77.2 first. A power-only cable or host-only port cannot carry this link.</p><p>Switching the board's Wi-Fi may interrupt a Wi-Fi-only connection. Keep USB connected when possible; do not repeat a switch blindly. The app shows progress and requires a fresh login after reconnecting.</p></article>
+        </section>
+        <section class="view active" data-view="overview">
+          <div class="view-heading">
+            <div><p class="eyebrow">LIVE SYSTEM</p><h1>Good <span id="daypart">day</span>, pilot</h1><p id="network" class="subtitle">Local connection</p></div>
+            <div class="hero-temp"><span id="temperature">—</span><sup>°C</sup><small>peak board</small></div>
+          </div>
+
+          <article class="system-hero panel">
+            <div class="hero-orbit" aria-hidden="true"><span></span><i></i></div>
+            <div class="hero-copy">
+              <div class="state-line"><span class="live-dot"></span><span>COMPANION ONLINE</span></div>
+              <h2 id="hostname">Orange Pi</h2>
+              <p>Monitoring, local AI, and sensor preparation are active. Flight control remains isolated on the H743.</p>
+            </div>
+            <div class="readiness"><strong id="readiness">0%</strong><span>hardware<br>visible</span></div>
+          </article>
+
+          <div class="metric-grid">
+            <article class="metric panel"><span class="metric-icon">CPU</span><div><small>1-MIN LOAD</small><strong id="load">—</strong></div></article>
+            <article class="metric panel"><span class="metric-icon">RAM</span><div><small>AVAILABLE</small><strong id="memory">—</strong></div></article>
+            <article class="metric panel"><span class="metric-icon">UP</span><div><small>UPTIME</small><strong id="uptime">—</strong></div></article>
+          </div>
+
+          <div class="overview-grid">
+            <article class="panel section-card">
+              <div class="section-heading"><div><p class="eyebrow">HARDWARE</p><h2>Connection readiness</h2></div><button class="text-button" type="button" data-view-target="sensors">View sensors</button></div>
+              <div id="device-summary" class="device-summary"></div>
+            </article>
+            <article class="panel section-card status-stack">
+              <p class="eyebrow">DUAL-LINK STATUS</p>
+              <div class="status-row"><span>Orange Pi</span><strong id="pi-link">Fresh login</strong></div>
+              <div class="status-row"><span>Round trip</span><strong id="link-rtt">Measuring</strong></div>
+              <div class="status-row"><span>H743 data age</span><strong id="data-age">No H743 data</strong></div>
+              <div class="status-row"><span>App stream</span><strong id="stream-state">Starting</strong></div>
+              <div class="status-row"><span>H743</span><strong id="h743-link">Waiting</strong></div>
+              <div class="status-row"><span>Private AP</span><strong id="direct">Starting</strong></div>
+              <div class="status-row"><span>Display</span><strong id="display">Checking</strong></div>
+              <div class="status-row"><span>Performance</span><strong id="performance">Starting</strong></div>
+              <div class="status-row"><span>Jev advisor</span><strong id="jev-state">Simulation pending</strong></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" data-view="flight" hidden>
+          <div class="view-heading compact"><div><p class="eyebrow">ARDUPILOT TELEMETRY</p><h1>Flight status</h1><p class="subtitle">Fresh, read-only MAVLink data from the MicoAir H743 V2</p></div><span id="flight-link-badge" class="authority-badge">Waiting for H743</span></div>
+          <article class="panel flight-hero">
+            <div class="flight-state"><span id="flight-state-dot"></span><div><small>VEHICLE STATE</small><strong id="flight-system-status">Disconnected</strong><p id="flight-transport">No telemetry transport</p></div></div>
+            <div class="mode-display"><small>FLIGHT MODE</small><strong id="flight-mode">—</strong><span id="flight-armed" class="mini-pill">Disarmed</span></div>
+            <div class="fresh-session"><small>FRESH SESSION</small><strong id="flight-session">Not started</strong><span>Cleared on reconnect and each new arming event</span></div>
+          </article>
+
+          <div class="flight-metrics">
+            <article class="panel flight-metric"><small>BATTERY</small><strong id="flight-battery">—</strong><span id="flight-battery-extra">No data</span></article>
+            <article class="panel flight-metric"><small>GPS</small><strong id="flight-gps">—</strong><span id="flight-gps-extra">No fix data</span></article>
+            <article class="panel flight-metric"><small>RELATIVE ALTITUDE</small><strong id="flight-altitude">—</strong><span>meters</span></article>
+            <article class="panel flight-metric"><small>GROUND SPEED</small><strong id="flight-speed">—</strong><span>meters/second</span></article>
+          </div>
+
+          <div class="flight-layout">
+            <article class="panel section-card attitude-card">
+              <p class="eyebrow">ATTITUDE</p><h2>Vehicle orientation</h2>
+              <div class="attitude-visual"><div id="horizon" hidden><i></i></div><span id="attitude-state">Attitude unavailable — no verified reading</span></div>
+              <div class="attitude-values"><p><span>ROLL</span><b id="flight-roll">—</b></p><p><span>PITCH</span><b id="flight-pitch">—</b></p><p><span>YAW</span><b id="flight-yaw">—</b></p></div>
+            </article>
+            <article class="panel section-card message-card">
+              <div class="section-heading"><div><p class="eyebrow">STATUS & ERRORS</p><h2>Current connection messages</h2></div><span id="message-count" class="mini-pill">0</span></div>
+              <div id="flight-messages" class="flight-messages"><p class="empty-state">No current-flight messages. Previous connection data is not retained here.</p></div>
+            </article>
+          </div>
+          <div class="read-only-banner"><span>✓</span><p><b>Read-only telemetry path</b><small>The monitor contains no MAVLink transmit, parameter, mission, mode-change, or motor-command implementation.</small></p></div>
+        </section>
+
+        <section class="view" data-view="sensors" hidden>
+          <div class="view-heading compact"><div><p class="eyebrow">SENSOR FUSION</p><h1>Forward perception</h1><p class="subtitle">Camera context plus peer LiDAR obstacle inputs</p></div><span class="authority-badge">H743 authoritative</span></div>
+          <div id="devices" class="sensor-grid"></div>
+
+          <div class="sensor-layout">
+            <article class="panel section-card matrix-card">
+              <div class="section-heading"><div><p class="eyebrow">MATRIX LIDAR</p><h2>8×8 depth field</h2></div><span id="matrix-state" class="mini-pill">Waiting</span></div>
+              <div id="matrix-grid" class="matrix-grid" aria-label="Eight by eight Matrix LiDAR depth field"></div>
+              <div class="scale"><span>NEAR</span><i></i><span>FAR</span></div>
+              <p class="card-note">Four central rows form eight forward obstacle sectors after physical calibration.</p>
+            </article>
+
+            <article class="panel section-card fusion-card">
+              <p class="eyebrow">PEER OBSTACLE INPUTS</p><h2>Closest credible range wins</h2>
+              <div class="fusion-path">
+                <div><span class="source-icon">8×8</span><b>Matrix LiDAR</b><small id="matrix-source">Not connected</small></div>
+                <span class="merge">+</span>
+                <div><span class="source-icon">H7</span><b>Front LiDAR</b><small id="front-source">Awaiting H743</small></div>
+              </div>
+              <div class="fusion-result"><span>FUSION STATE</span><strong id="fusion-state">Simulation only</strong><small id="fusion-detail">MAVLink transmission disabled pending calibration</small></div>
+              <ul class="guard-list"><li>Nearest valid distance wins</li><li>Stale data rejected after 200ms</li><li>Both invalid requests hold</li></ul>
+            </article>
+          </div>
+
+          <article class="panel section-card">
+            <p class="eyebrow">CURRENT CONNECTION DETAILS</p>
+            <div class="detail-grid"><p id="sensor-display">No display data.</p><p id="sensor-direct">No direct-link data.</p><p id="sensor-performance">No performance data.</p></div>
+          </article>
+        </section>
+
+        <section class="view" data-view="control" hidden>
+          <div class="view-heading compact"><div><p class="eyebrow">SECURE DESKTOP CONTROL</p><h1>Remote touchpad & keyboard</h1><p class="subtitle">Control the Orange Pi desktop from this iPhone, iPad, or computer</p></div><span id="input-link-badge" class="authority-badge">Checking desktop</span></div>
+          <div class="control-layout">
+            <article class="panel remote-card pointer-card">
+              <div class="section-heading"><div><p class="eyebrow">POINTER</p><h2>Glass touchpad</h2></div><span id="pointer-state" class="mini-pill">Ready</span></div>
+              <div id="touchpad" class="touchpad" role="application" aria-label="Remote Orange Pi touchpad" tabindex="0">
+                <div class="touchpad-glow" aria-hidden="true"></div>
+                <div class="touchpad-mark" aria-hidden="true"><span></span><i></i></div>
+                <p><b>Move with one finger</b><span>Tap to click · two fingers to scroll</span></p>
+              </div>
+              <div class="mouse-buttons">
+                <button id="left-click" type="button"><span>◉</span>Left click</button>
+                <button id="drag-lock" type="button" aria-pressed="false"><span>↔</span>Drag lock</button>
+                <button id="right-click" type="button"><span>◎</span>Right click</button>
+              </div>
+              <label class="sensitivity"><span>Pointer speed</span><input id="pointer-speed" type="range" min="0.6" max="2.4" value="1.25" step="0.05"><output id="pointer-speed-value">1.25×</output></label>
+            </article>
+
+            <article class="panel remote-card keyboard-card">
+              <div class="section-heading"><div><p class="eyebrow">KEYBOARD</p><h2>Phone keyboard bridge</h2></div><span id="keyboard-state" class="mini-pill">Session-bound</span></div>
+              <label class="type-zone" for="remote-type"><span>Tap here to open your keyboard</span><textarea id="remote-type" rows="2" inputmode="text" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Type on the Orange Pi…"></textarea></label>
+              <div class="key-grid special-keys" aria-label="Special keyboard keys">
+                <button type="button" data-key="Escape">Esc</button><button type="button" data-key="Tab">Tab</button><button type="button" data-key="Backspace">⌫</button><button type="button" data-key="Delete">Del</button>
+                <button type="button" data-key="Home">Home</button><button type="button" data-key="ArrowUp">↑</button><button type="button" data-key="End">End</button><button type="button" data-key="Enter" class="accent-key">Enter</button>
+                <button type="button" data-key="ArrowLeft">←</button><button type="button" data-key="ArrowDown">↓</button><button type="button" data-key="ArrowRight">→</button><button type="button" data-key="Space">Space</button>
+              </div>
+              <div class="shortcut-row" aria-label="Keyboard shortcuts">
+                <button type="button" data-key="a" data-modifiers="ctrl">Ctrl A</button><button type="button" data-key="c" data-modifiers="ctrl">Ctrl C</button><button type="button" data-key="v" data-modifiers="ctrl">Ctrl V</button><button type="button" data-key="Tab" data-modifiers="alt">Alt Tab</button>
+              </div>
+              <p class="input-safety"><span>✓</span><span><b>Fresh-session input</b> Pointer holds are released when the app closes, signs out, loses authorization, starts a new login, sits idle for 10 seconds, or reaches 60 seconds total. Active pointer movement refreshes only the idle timer. This page cannot execute shell commands.</span></p>
+            </article>
+          </div>
+          <article class="panel input-status-card"><span class="input-pulse" aria-hidden="true"></span><p><small>REMOTE INPUT STATUS</small><strong id="input-status">Waiting for a secured session</strong><span id="input-rtt">No input acknowledgement yet</span></p><button id="release-input" class="text-button" type="button">Release all input</button></article>
+        </section>
+
+        <section class="view" data-view="ai" hidden>
+          <div class="view-heading compact"><div><p class="eyebrow">ONBOARD AI</p><h1>Chat with your AI flight team</h1><p class="subtitle">Private, local, and advisory-only</p></div><span class="authority-badge">No flight commands</span></div>
+          <article class="panel ai-layout">
+            <div class="ai-profile">
+              <div class="ai-orb"><i></i></div>
+              <div><b>Fast onboard model</b><small>Deterministic safety guard active</small></div>
+            </div>
+            <div id="chat" class="chat" aria-live="polite"><p class="assistant">I run locally on the Orange Pi. Ask about the board, sensors, or reports. I cannot directly command the aircraft.</p></div>
+            <form id="chat-form" class="composer"><input id="message" placeholder="Ask about the companion…" maxlength="12000" autocomplete="off"><button class="primary" type="submit">Send</button></form>
+            <p class="card-note">Safety-critical requests are handled by deterministic rules before the language model is consulted.</p>
+          </article>
+        </section>
+
+        <section class="view" data-view="logs" hidden>
+          <div class="view-heading compact"><div><p class="eyebrow">UPDATES & POST-FLIGHT</p><h1>Flight data made understandable</h1><p class="subtitle">Live progress, update notices, and explainable read-only suggestions</p></div><span id="insight-freshness" class="authority-badge">Loading</span></div>
+          <div class="log-layout">
+            <article class="panel section-card">
+              <p class="eyebrow">ANALYZED HISTORY</p><h2>Offline profile</h2>
+              <div class="profile"><div><strong id="files">0</strong><small>logs</small></div><div><strong id="hours">0</strong><small>hours</small></div><div><strong id="messages">0</strong><small>messages</small></div></div>
+              <div class="learning-lock"><span>✓</span><p><b>Authority lock enabled</b><small>Analysis cannot change flight parameters.</small></p></div>
+            </article>
+            <article class="panel section-card upload-card">
+              <p class="eyebrow">ADD FLIGHT DATA</p><h2>Upload an ArduPilot log</h2>
+              <label class="upload"><span>+</span><b>Choose a .BIN file</b><small>Raw logs remain on the board</small><input id="logfile" type="file" accept=".bin,application/octet-stream"></label>
+              <p id="upload-status" class="card-note" role="status">Ready for a flight log.</p>
+            </article>
+            <article class="panel section-card update-card">
+              <div class="section-heading"><div><p class="eyebrow">SOFTWARE HEALTH</p><h2>Update center</h2></div><span id="update-count" class="mini-pill">Checking</span></div>
+              <div id="update-progress" class="live-progress"><i></i><span>Waiting for status…</span></div>
+              <p id="update-detail" class="card-note">Security updates are checked on your trusted home Wi-Fi.</p>
+              <div id="update-packages" class="tag-list" aria-label="Available package updates"></div>
+              <p class="input-safety"><span>✓</span><span>Security updates are automatic when safe. Kernel, boot, and board firmware always wait for review; nothing reboots during a flight.</span></p>
+            </article>
+            <article class="panel section-card advice-card">
+              <div class="section-heading"><div><p class="eyebrow">AI FLIGHT TEAM</p><h2>Suggestions with reasons</h2></div><span class="mini-pill">Read-only</span></div>
+              <div id="analysis-progress" class="live-progress"><i></i><span>Loading flight evidence…</span></div>
+              <div id="advisories" class="advisory-list"></div>
+            </article>
+            <article class="panel section-card">
+              <p class="eyebrow">OFFLINE LEARNING · OWNER REVIEW</p><h2>Tested improvement proposals</h2>
+              <p class="card-note">Completed, human-labelled flight data can produce tested advisory-policy candidates offline. Separately configured onboard weight trainers can create new model candidates only when eligible data and safe resources are available. Nothing activates automatically. These reviews do not grant arbitrary source editing or flight-controller tuning.</p>
+              <p id="weight-training-status" class="card-note" role="status" aria-live="polite">Onboard weight-training status has not been loaded. Configuration alone is not proof of a successful training run.</p>
+              <p id="battery-training-status" class="card-note" role="status" aria-live="polite">Battery prediction training has not reported a candidate. Training results do not establish battery health, reserve or a safe flight mode.</p>
+              <button id="learning-refresh" type="button">Refresh proposals</button>
+              <div id="learning-candidates" class="advisory-list"></div>
+              <pre id="learning-report" class="review-report" aria-label="Exact proposal and test evidence"></pre>
+              <label><input id="learning-confirm" type="checkbox"> I reviewed this exact proposal and its tests. Approve companion advisory settings only.</label>
+              <button id="learning-approve" class="primary" type="button" disabled>Approve reviewed proposal</button>
+              <p id="learning-progress" class="card-note" role="status" aria-live="polite">Connect and review a proposal first. Approval is bench-only.</p>
+              <p id="code-review-status" class="card-note">Offline source syntax/integrity check pending.</p>
+            </article>
+            <article class="panel section-card data-card">
+              <div class="section-heading"><div><p class="eyebrow">BIN DATA</p><h2>What the log contains</h2></div><span id="analysis-state" class="mini-pill">Idle</span></div>
+              <p id="data-empty" class="empty-state">Upload a completed .BIN file to see measurements and message types here.</p>
+              <div id="measurement-list" class="measurement-list"></div>
+              <div id="message-types" class="tag-list"></div>
+            </article>
+            <article class="panel section-card battery-panel">
+              <div class="section-heading"><div><p class="eyebrow">PHYSICAL BATTERY HISTORY</p><h2>Every pack keeps its own history</h2></div><span id="battery-history-count" class="mini-pill">Waiting</span></div>
+              <p class="card-note">Label your physical packs (for example, Pack A and Pack B). Voltage and the BAT monitor number cannot identify a swapped battery. Each new completed log stays unassigned until you identify the pack. A recharge or reboot never replaces old records.</p>
+              <form id="battery-register-form">
+                <label for="battery-label">Physical pack label</label>
+                <input id="battery-label" type="text" maxlength="60" placeholder="Pack A · 6S" autocomplete="off">
+                <button id="battery-register" type="submit">Save new pack</button>
+              </form>
+              <label for="battery-observation">Unassigned completed flight / battery monitor</label>
+              <select id="battery-observation"><option value="">No record selected</option></select>
+              <label for="battery-pack">Physical pack used for that record</label>
+              <select id="battery-pack"><option value="">Choose a saved pack</option></select>
+              <label><input id="battery-confirm" type="checkbox"> I checked that only this physical pack supplied this exact log / monitor record. This permanent assignment applies only to that record.</label>
+              <div class="input-actions"><button id="battery-assign" type="button" disabled>Link this record to this pack</button><button id="battery-refresh" type="button">Refresh battery history</button></div>
+              <p id="battery-progress" class="card-note" role="status" aria-live="polite">Connect to load preserved history. Pack identification is bench-only; disconnect flight hardware first.</p>
+              <div id="battery-profiles" class="advisory-list"></div>
+              <p class="card-note">If the controller stayed powered and one log covers a battery swap, leave it unassigned until separate pack segments are available. Energy and power use only valid measured intervals. Missing or unhealthy data remains unknown; totals do not establish capacity, state of health, remaining range, or a learned battery-saving flight mode.</p>
+            </article>
+          </div>
+        </section>
+      </div>
+
+      <nav class="bottom-nav" aria-label="Mobile navigation">
+        <button class="active" type="button" data-view-target="overview"><span>OV</span><b>Overview</b></button>
+        <button type="button" data-view-target="flight"><span>FL</span><b>Flight</b></button>
+        <button type="button" data-view-target="sensors"><span>SN</span><b>Sensors</b></button>
+        <button type="button" data-view-target="control"><span>RC</span><b>Control</b></button>
+        <button type="button" data-view-target="ai"><span>AI</span><b>AI</b></button>
+        <button type="button" data-view-target="logs"><span>LG</span><b>Logs</b></button>
+        <button type="button" data-view-target="network"><span>WI</span><b>Network</b></button>
+      </nav>
+    </div>
+  </main>
+  <!-- Client build 17: typed Wi-Fi API UI; service-worker v17 refreshes assets. -->
+  <script src="/app.js" defer></script>
+</body>
+</html>

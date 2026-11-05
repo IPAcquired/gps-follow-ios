@@ -1,0 +1,12 @@
+[Unit]
+Description=Detect each home Wi-Fi association and run safe maintenance once
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+AccuracySec=1min
+Persistent=true
+Unit=orangepi-home-maintenance.service
+
+[Install]
+WantedBy=timers.target

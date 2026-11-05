@@ -1,0 +1,88 @@
+#!/usr/bin/python3
+"""Compact launcher for the real Pi desktop; all actions run as the desktop user."""
+import os,subprocess,sys,urllib.parse
+import gi
+gi.require_version('Gtk','3.0')
+from gi.repository import Gtk,Gio,Gdk,GLib,Pango
+
+class TouchDesktop(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id='org.axl.TouchDesktop',flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+        self.window=None
+    def do_command_line(self,line):
+        self.activate()
+        if '--web' in line.get_arguments():GLib.idle_add(self.web)
+        return 0
+    def do_activate(self):
+        if self.window is not None:self.window.present();return
+        css=Gtk.CssProvider();css.load_from_data(b'window {background:#111a22;color:#f0f5fa;} button {background-image:none;background-color:#203341;color:#f2f8fc;border:1px solid #365166;min-height:32px;padding:6px;border-radius:8px;} button:checked,button:hover {background-color:#17645f;} entry {background:#1e2b38;color:#f2f8fc;min-height:32px;} list, row {background:#111a22;} label {font-size:15px;}')
+        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(),css,Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        self.window=Gtk.ApplicationWindow(application=self,title='AXL Desktop')
+        self.window.set_default_size(320,436);self.window.set_border_width(10)
+        box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);self.window.add(box)
+        stack=Gtk.Stack();switcher=Gtk.StackSwitcher();switcher.set_stack(stack)
+        box.pack_start(switcher,False,False,0);box.pack_start(stack,True,True,0)
+        quick=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);stack.add_titled(quick,'quick','Quick launch')
+        all_apps=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=8);stack.add_titled(all_apps,'apps','All apps')
+        grid=Gtk.Grid(column_spacing=8,row_spacing=8,column_homogeneous=True);quick.pack_start(grid,False,False,0)
+        entries=[('Files',lambda:self.spawn(['thunar','/home/drone'])),('Web',self.web),('AI tools',lambda:self.spawn(['/home/drone/bin/orangepi-ai-launcher'])),('Terminal',lambda:self.spawn(['xfce4-terminal','--geometry=34x12'])),('Settings',lambda:self.spawn(['xfce4-settings-manager'])),('Show desktop',lambda:self.window.iconify())]
+        buttons=[]
+        for i,(name,action) in enumerate(entries):
+            b=Gtk.Button(label=name);b.connect('clicked',lambda _,fn=action:fn());grid.attach(b,i%2,i//2,1,1);buttons.append(b)
+        columns=[2]
+        def reflow(_,allocation):
+            count=3 if allocation.width>=400 else 2
+            if count==columns[0]:return
+            columns[0]=count
+            for b in buttons:grid.remove(b)
+            for i,b in enumerate(buttons):grid.attach(b,i%count,i//count,1,1)
+            grid.show_all()
+        box.connect('size-allocate',reflow)
+        search=Gtk.SearchEntry(placeholder_text='Find an installed app');all_apps.pack_start(search,False,False,0)
+        scroll=Gtk.ScrolledWindow();scroll.set_policy(Gtk.PolicyType.NEVER,Gtk.PolicyType.AUTOMATIC);all_apps.pack_start(scroll,True,True,0)
+        self.apps=Gtk.ListBox();self.apps.set_selection_mode(Gtk.SelectionMode.NONE);scroll.add(self.apps)
+        for app in sorted((a for a in Gio.AppInfo.get_all() if a.should_show()),key=lambda a:a.get_display_name().casefold()):
+            name=app.get_display_name();row=Gtk.ListBoxRow();row.search_name=name.casefold();b=Gtk.Button()
+            label=Gtk.Label(label=name);label.set_xalign(0);label.set_ellipsize(Pango.EllipsizeMode.END);b.add(label)
+            b.connect('clicked',lambda _,a=app:self.launch_app(a));row.add(b);self.apps.add(row)
+        search.connect('search-changed',lambda entry:self.apps.set_filter_func(lambda row:entry.get_text().casefold() in row.search_name))
+        self.window.show_all();self.window.maximize();self.window.present()
+    def spawn(self,args):
+        try:subprocess.Popen(args,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
+        except OSError:self.notice('This application is not installed.')
+    def launch_app(self,app):
+        try:app.launch([],None)
+        except GLib.Error:self.notice('The application could not be opened.')
+    def notice(self,text):
+        d=Gtk.MessageDialog(transient_for=self.window,modal=True,text=text,buttons=Gtk.ButtonsType.CLOSE);d.connect('response',lambda w,_:w.destroy());d.show()
+    def web(self):
+        dialog=Gtk.Dialog(title='Open website',transient_for=self.window,modal=True)
+        dialog.add_button('Cancel',Gtk.ResponseType.CANCEL);dialog.add_button('Open',Gtk.ResponseType.OK)
+        dialog.set_default_response(Gtk.ResponseType.OK);dialog.set_default_size(300,160)
+        dialog.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
+        entry=Gtk.Entry(placeholder_text='example.com');entry.set_activates_default(True)
+        content=dialog.get_content_area();content.set_border_width(10);content.set_spacing(8)
+        label=Gtk.Label(label='Website address');label.set_xalign(0);content.add(label);content.add(entry)
+        error=Gtk.Label();error.set_line_wrap(True);content.add(error)
+        def response(d,r):
+            if r!=Gtk.ResponseType.OK:d.destroy();return
+            url=entry.get_text().strip()
+            if '://' not in url:url='https://'+url
+            try:
+                parsed=urllib.parse.urlsplit(url)
+                if len(url)>2048 or parsed.scheme!='https' or not parsed.hostname or parsed.username or parsed.password or any(ord(c)<32 for c in url):raise ValueError()
+            except ValueError:error.set_text('Enter a valid HTTPS website address.');return
+            profile=os.path.expanduser('~/.local/share/axl-touch-browser');os.makedirs(profile,mode=0o700,exist_ok=True)
+            screen=Gdk.Screen.get_default();w=screen.get_width();h=screen.get_height()
+            self.spawn(['chromium','--user-data-dir='+profile,'--force-renderer-accessibility','--app='+url,f'--window-size={w},{h}','--window-position=0,0','--start-maximized'])
+            d.destroy()
+        def center_on_screen():
+            screen=Gdk.Screen.get_default();width,height=dialog.get_size()
+            # Center the decorated dialog in the native canvas, not relative to
+            # a legacy app window whose minimum height may exceed that canvas.
+            dialog.move(max(0,(screen.get_width()-width)//2),max(27,(screen.get_height()-height-24)//2))
+            return False
+        dialog.connect('response',response);dialog.show_all();entry.grab_focus()
+        GLib.idle_add(center_on_screen);return False
+
+if __name__=='__main__':raise SystemExit(TouchDesktop().run(sys.argv))

@@ -1,0 +1,16 @@
+[Unit]
+Description=Orange Pi USB Ethernet and serial management gadget
+After=sys-kernel-config.mount systemd-modules-load.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/orangepi-usb-gadget start
+ExecStop=/usr/local/sbin/orangepi-usb-gadget stop
+Restart=on-failure
+RestartSec=15
+TimeoutStartSec=45
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,34 @@
+[Unit]
+Description=Orange Pi iPhone and iPad companion app
+After=orangepi-ai.service
+
+[Service]
+Type=simple
+ExecStart=/home/drone/bin/orangepi-companion
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+IPAddressAllow=10.42.0.0/24
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+ReadWritePaths=/home/drone/flight-data/inbox
+MemoryMax=256M
+
+[Install]
+WantedBy=default.target
