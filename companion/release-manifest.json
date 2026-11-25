@@ -1,0 +1,14 @@
+{
+  "recipe": "corvon743v2-v4.7.3-r2",
+  "canonical_release": "https://github.com/IPAcquired/gps-follow-ios/releases/tag/corvon743v2-v4.7.3-r2",
+  "board": "CORVON743V2",
+  "board_id": 1229,
+  "upstream_commit": "d9c5097c3d8333435712ffed86bca8ce00c4bb46",
+  "apj_sha256": "70aea673e906da4494403594baddea57e37279d53c487f0d009dd7b0a06abd57",
+  "abin_filename": "CORVON743V2-4.7.3-R2.abin",
+  "abin_sha256": "9bbb2a3778e4fba3e4be54c9b3ebb8bea2730dcfb287d039b55da81fe9b204d2",
+  "application_bytes": 1536048,
+  "application_sha256": "1d756c6c14388a0e641b044117aa0e14217b27f52f55e7edb79ee85abd57c1a6",
+  "bootloader_sector_sha256": "4b56249587234f36774e0859e32b58a19c48adda30ada481d8d3a540029f5e98",
+  "application_erase_range": ["0x08020000", "0x081C0000 exclusive"]
+}

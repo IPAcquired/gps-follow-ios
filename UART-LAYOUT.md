@@ -1,15 +1,15 @@
 # Orange Pi telemetry, sensors and camera
 
-This is the intended layout for a CORVON743V2 and Orange Pi Zero 3W. The port assignments are confirmed for the design. Physical signal, sensor-frame and camera-frame tests on this controller and companion are still pending.
+This layout connects a CORVON743V2 and an Orange Pi Zero 3W. The controller transmitted on UART4 during a disarmed bench test. End-to-end reception on the Pi and physical sensor and camera frames still require verification.
 
 | Endpoint | Connection | Purpose |
 | --- | --- | --- |
-| CORVON743V2 TELEM2, UART4 (`SERIAL4`) | Controller TX (PA0) to the Orange Pi UART0 RX and common signal ground | Receive flight-controller telemetry on the Pi at 115200 baud. This profile only requires the controller-to-Pi data line. |
+| CORVON743V2 TELEM2, UART4 (`SERIAL4`) | Controller TX (PA0) to Pi UART0 RX, Pi UART0 TX to controller RX (PA1), and common signal ground | MAVLink 2 at 115200 baud. The controller transmits telemetry. The Pi can use the return wire for approved maintenance. |
 | C1 lidar | Orange Pi UART2 | Sensor data goes to the Pi. Check the model's connection and baud rate before expecting a scan. |
 | 8×8 time-of-flight matrix | Orange Pi UART7 | Sensor data goes to the Pi. Verify frames and orientation for the installed sensor. |
 | USB camera | Orange Pi USB host port | Capture video through the camera's USB/UVC interface. |
 
-Confirm the Pi exposes UART0, UART2 and UART7 on the chosen connectors. Check that the Pi's boot console or a login service is not using the telemetry UART. Identify each sensor by its output and the camera by a decoded video frame. The profile configures only telemetry transmission on the flight controller.
+Confirm the Pi exposes UART0, UART2 and UART7 on the chosen connectors. Check that both the Pi bootloader console and Linux login services leave UART0 available. Identify each sensor by its output and the camera by a decoded video frame. Ordinary monitoring reads telemetry. Maintenance presents the exact proposed change for approval before writing to the controller.
 
 ## Identify the MAVLink stream group
 

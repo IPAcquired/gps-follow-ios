@@ -15,7 +15,11 @@ The [Orange Pi UART layout and optional telemetry profile](UART-LAYOUT.md) ident
 
 The board has its own pin assignments and firmware ID. Select the exact CORVON743V2 board when building. Sensor orientation, calibration and avoidance behavior depend on the aircraft and its installed sensors. This release contains no flight-test qualification.
 
-## Source and license
+## Orange Pi monitoring and approved maintenance
+
+The companion kit reads the existing telemetry monitor and prepares updates for owner review. The two-way connection, sensor assignments and setup checks are in the [UART layout](UART-LAYOUT.md). The [installation guide](companion/INSTALL.md) and [maintenance commands](companion/README.md) cover monitoring, profile approval, recovery and the board-specific SD firmware recipe. The release ZIP contains the matching ABIN file. The tagged source contains the tools and their offline tests.
+
+## Firmware source and license
 
 The complete R2 changes are in `complete-source.patch`. The source manifest identifies the upstream revision and its recursive dependencies. Build instructions include the commands for a clean checkout. [Build from source](BUILD.md) · [Source manifest](SOURCE.md)
 
