@@ -1,0 +1,10 @@
+{
+  "usb_serial": "<controller USB serial>",
+  "ssh_user": "<receiver account>",
+  "ssh_candidates": ["<verified Pi hostname or private address>"],
+  "known_host_alias": "<host name with the verified key in known_hosts>",
+  "host_key_sha256": "<verified Ed25519 host fingerprint including SHA256 prefix>",
+  "identity_file": "<absolute path to your SSH identity file>",
+  "known_hosts_file": "<absolute path to your verified known_hosts file>",
+  "windows_link_local": null
+}
