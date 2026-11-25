@@ -16,6 +16,7 @@ import time
 FIFO = "/run/orangepi-mavlink/pc-h743.fifo"
 READY = b"PC_H743_RECEIVER_READY_V1\n"
 CALIBRATE = b"PC_H743_RECEIVER_CLOCK_V1\n"
+CLOCK_CHANGED = b"PC_H743_RECEIVER_CLOCK_CHANGED_V1\n"
 MODEL = "Orange Pi Zero 3W"
 
 
@@ -129,7 +130,7 @@ def observe_status(s, now):
              all(type(source.get(k)) is int and 1 <= source[k] <= 255 for k in ("system_id","component_id")) and
              all(type(v) in (int,float) and 0 <= now - v <= 2 for v in (hb,updated)))
     return name, hb if valid else None
-def watch_monitor(parent):
+def watch_monitor(parent, calibrated_wall_offset):
     last = None
     consecutive = 0
     status = Path("/run/orangepi-mavlink/status.json")
@@ -140,6 +141,11 @@ def watch_monitor(parent):
             name, stamp = observe_status(value, now)
         except (ValueError, OSError, TypeError, AttributeError):
             now, name, stamp = time.time(), "other", None
+        # The PC calibrated against this Pi's wall clock. Its monotonic clock
+        # survives an NTP step, including one between the handshake and fork.
+        if abs((now - time.monotonic()) - calibrated_wall_offset) > .25:
+            os.write(1, b"PC_H743_RECEIVER_CLOCK_CHANGED_V1\n")
+            return
         if stamp is None:
             consecutive = 0
         elif last is None or stamp < last:
@@ -161,11 +167,13 @@ def bootstrap():
         raise SystemExit(1)
     sys.stdout.buffer.write(b"PC_H743_RECEIVER_CLOCK_V1\n")
     sys.stdout.buffer.flush()
-    for _ in range(3):
+    for index in range(3):
         challenge = sys.stdin.buffer.readline(64)
         if not re.fullmatch(rb"C [0-9a-f]{24}\n", challenge):
             raise SystemExit(1)
         stamp = time.time_ns()
+        if index == 0:
+            calibrated_wall_offset = (stamp - time.monotonic_ns()) / 1_000_000_000
         sys.stdout.buffer.write(b"T " + challenge[2:-1] + b" " + str(stamp).encode() + b"\n")
         sys.stdout.buffer.flush()
     if sys.stdin.buffer.readline(16) != b"GO\n":
@@ -176,7 +184,7 @@ def bootstrap():
     if os.fork() == 0:
         try:
             os.close(0)
-            watch_monitor(parent)
+            watch_monitor(parent, calibrated_wall_offset)
         finally:
             os._exit(0)
     os.execv("/usr/bin/python3", ["python3", "-B", str(receiver)])
@@ -234,9 +242,13 @@ class PiReceipts:
         self.clock = clock
         self.latest = None
         self.thread = None
+        self.clock_changed = threading.Event()
 
     def accept(self, line, now):
-        if not line.startswith(b"S ") or len(line) > 160:
+        if line == CLOCK_CHANGED:
+            self.clock_changed.set()
+            return
+        if self.clock_changed.is_set() or not line.startswith(b"S ") or len(line) > 160:
             return
         try:
             sampled, transport, stamp, count = json.loads(line[2:])
@@ -256,7 +268,7 @@ class PiReceipts:
     def status(self, now):
         remote_now = self.clock.epoch(now)
         value = self.latest
-        recent = bool(value and -.3 <= remote_now - value[0] <= 2)
+        recent = bool(not self.clock_changed.is_set() and value and -.3 <= remote_now - value[0] <= 2)
         transport = value[1] if recent else "unknown"
         stamp = value[2] if recent else None
         valid = stamp is not None and transport == "fifo" and -.3 <= remote_now - stamp <= 2

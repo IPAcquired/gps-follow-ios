@@ -23,7 +23,14 @@ def publish(state, **fields):
     target = STATE_DIR / "bridge-status.json"
     temporary = target.with_suffix(".tmp")
     temporary.write_text(json.dumps(status), encoding="utf-8")
-    os.replace(temporary, target)
+    try:
+        os.replace(temporary, target)
+    except PermissionError as error:
+        if getattr(error, "winerror", None) not in (5, 32, 33):
+            raise
+        # An open Windows reader may temporarily deny rename. The previous
+        # complete record expires normally; the next poll publishes a fresh one.
+        return
 
 
 def pause():
@@ -37,7 +44,7 @@ def forward(port, child):
     packets = Packetizer()
     last_publish = 0
     last_read = time.monotonic()
-    while not STOP.exists() and child.poll() is None:
+    while not STOP.exists() and child.poll() is None and not child.pi_receipts.clock_changed.is_set():
         captured = time.monotonic()
         if not child.capture_clock.current(captured) or captured - last_read > .75:
             break
@@ -48,7 +55,8 @@ def forward(port, child):
             continue
         data = port.read(min(4096, max(1, port.in_waiting)))
         last_read = time.monotonic()
-        if last_read - captured > .75 or not child.capture_clock.current(last_read):
+        if (last_read - captured > .75 or not child.capture_clock.current(last_read)
+                or child.pi_receipts.clock_changed.is_set()):
             break
         for payload, first_capture in packets.push(data, captured):
             sequence += 1
@@ -66,6 +74,7 @@ def forward(port, child):
 
 def serve(serial, list_ports):
     attempt = 0
+    next_fast_retry = 0.0
     while not STOP.exists():
         child = None
         port = None
@@ -93,6 +102,14 @@ def serve(serial, list_ports):
                         # On disconnect retry the working route before moving on.
                         attempt -= 1
                         forward(port, child)
+                        if child.pi_receipts.clock_changed.is_set():
+                            publish("recalibrating_pi_clock")
+                            now = time.monotonic()
+                            if now >= next_fast_retry:
+                                # Retry the verified endpoint immediately once. Repeated
+                                # steps during startup still use the normal backoff.
+                                next_fast_retry = now + 2
+                                continue
         except (KeyError, TypeError, ValueError, OSError, subprocess.SubprocessError, serial.SerialException):
             publish("reconnecting")
         finally:

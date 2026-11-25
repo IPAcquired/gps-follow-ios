@@ -3,11 +3,13 @@ import ast
 import base64
 import hashlib
 import importlib.util
+import io
 import json
 from pathlib import Path
 import re
 import sys
 import tempfile
+import threading
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
@@ -30,6 +32,18 @@ probe = load_script("status_probe", "check-pi-bridge-status.py")
 
 
 class BridgeTests(unittest.TestCase):
+    def test_busy_windows_status_reader_does_not_interrupt_forwarding(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(sender, "STATE_DIR", Path(tmp)):
+            target = Path(tmp) / "bridge-status.json"
+            sender.publish("first")
+            busy = PermissionError("status is being read")
+            busy.winerror = 5
+            with patch.object(sender.os, "replace", side_effect=busy):
+                sender.publish("busy")
+            self.assertEqual(json.loads(target.read_text())["state"], "first")
+            sender.publish("recovered")
+            self.assertEqual(json.loads(target.read_text())["state"], "recovered")
+
     def test_example_cannot_select_real_hardware(self):
         with self.assertRaises(ValueError):
             route.private_profile(HERE / "bridge.example.json")
@@ -142,6 +156,84 @@ if sys.stdin.buffer.readline()==b"GO\\n":
             route.CaptureClock([(t, r+1, e) for t,r,e in samples])
         with self.assertRaises(ValueError):
             route.CaptureClock([*samples[:2],(102,102.04,1200)])
+
+    def test_bootstrap_detects_clock_steps_from_its_first_calibration_sample(self):
+        # Run the delivered handshake and watcher with only their OS inputs replaced.
+        code = ast.parse(route.BOOTSTRAP)
+        code.body.pop()  # Invoke bootstrap below, after binding simulated clocks and pipes.
+        for steps, labels in (([0, .01], ["S", "S"]), ([691], ["changed"]),
+                              ([-691], ["changed"]), ([0, 691], ["S", "changed"])):
+            with self.subTest(steps=steps):
+                env = {}
+                exec(compile(code, "<bootstrap>", "exec"), env)
+                remote_os = Mock()
+                remote_os.getpid.return_value = 42
+                remote_os.fork.return_value = 0
+                remote_os.getppid.side_effect = [42] * len(steps) + [1]
+                remote_os._exit.side_effect = SystemExit(0)
+                clock = Mock()
+                clock.time_ns.return_value = 1_000_000_000_000
+                clock.monotonic_ns.return_value = 10_000_000_000
+                clock.time.side_effect = [1001 + i + step for i, step in enumerate(steps)]
+                clock.monotonic.side_effect = [11 + i for i in range(len(steps))]
+                stdin = io.BytesIO((b"C " + b"a" * 24 + b"\n") * 3 + b"GO\n")
+                stdout = io.BytesIO()
+                env.update(os=remote_os, time=clock, verified_route=lambda *args: True,
+                           sys=SimpleNamespace(stdin=SimpleNamespace(buffer=stdin),
+                                               stdout=SimpleNamespace(buffer=stdout)))
+                with patch.object(Path, "read_bytes", return_value=b"fixture"), \
+                     patch.object(Path, "read_text", return_value="{}"), \
+                     patch.object(route.subprocess, "run", return_value=SimpleNamespace(returncode=0)), \
+                     self.assertRaises(SystemExit):
+                    env["bootstrap"]()
+                self.assertIn(route.READY, stdout.getvalue())
+                lines = [args[1] for args, _ in remote_os.write.call_args_list]
+                observed = ["changed" if line == route.CLOCK_CHANGED else line.split(b" ")[0].decode()
+                            for line in lines]
+                self.assertEqual(observed, labels)
+
+    def test_step_invalidates_receipts_and_retries_same_pinned_route_before_backoff(self):
+        device = SimpleNamespace(vid=0x1209, pid=0x5741, serial_number="fixture", device="fixture-port")
+        stopped = threading.Event()
+        serial = Mock(SerialException=OSError)
+        listed = Mock()
+        listed.comports.return_value = [device]
+        first, second = Mock(), Mock()
+        first.in_waiting = second.in_waiting = 17
+        serial.Serial.side_effect = [first, second]
+        old, new = Mock(), Mock()
+        for child, offset in ((old, 0), (new, 691)):
+            child.poll.return_value = None
+            child.capture_clock.epoch.side_effect = lambda t, shift=offset: t + shift
+            child.capture_clock.current.return_value = True
+            child.capture_clock.rtt = 0
+            child.pi_receipts = route.PiReceipts(child.capture_clock)
+        previous = b'S [10,"fifo",9.9,4]\n'
+        old.pi_receipts.accept(previous, 10)
+        self.assertTrue(old.pi_receipts.status(10)["pi_fifo_verified"])
+        def step_during_read(n):
+            old.pi_receipts.accept(route.CLOCK_CHANGED, 10)
+            old.pi_receipts.accept(previous, 10)  # An earlier receipt cannot revive this session.
+            return b"stale"
+        first.read.side_effect = step_during_read
+        heartbeat = bytes.fromhex("fe0900010100000000000203000303d598")
+        second.read.return_value = heartbeat
+        new.stdin.flush.side_effect = stopped.set
+        with patch.object(sender, "STOP", SimpleNamespace(exists=stopped.is_set)), \
+             patch.object(sender, "publish") as publish, patch.object(sender, "pause") as pause, \
+             patch.object(route, "private_profile", return_value=("fixture", {})), \
+             patch.object(route, "saved_route", return_value=(["paired.invalid", "alternate.invalid"], [])), \
+             patch.object(route, "open_receiver", side_effect=[old, new]) as connect, \
+             patch.object(route, "close_receiver") as close:
+            sender.serve(serial, listed)
+        self.assertEqual([args[1] for args, _ in connect.call_args_list], ["paired.invalid"] * 2)
+        self.assertEqual([args[0] for args, _ in close.call_args_list], [old, new])
+        publish.assert_any_call("recalibrating_pi_clock")
+        pause.assert_called_once()  # Only after the second session.
+        self.assertFalse(old.pi_receipts.status(10)["pi_fifo_verified"])
+        old.stdin.write.assert_not_called()
+        new.stdin.write.assert_called_once()
+        self.assertEqual(base64.b64decode(json.loads(new.stdin.write.call_args.args[0])["data"]), heartbeat)
 
     def test_status_requires_two_fresh_clock_values_and_correct_transport(self):
         src={"system_id":1,"component_id":1}
