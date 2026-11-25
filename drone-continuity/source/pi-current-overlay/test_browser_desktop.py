@@ -63,8 +63,8 @@ class BrowserRoutes(unittest.TestCase):
   self.server=ThreadingHTTPServer(('127.0.0.1',0),handler_for({'expires_unix':time.time()+60,'token_sha256':hashlib.sha256(self.token.encode()).hexdigest()},dispatch=dispatch,snapshot=lambda:{'schema':1},desktop=desktop))
   self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
  def tearDown(self):self.block.set();self.server.shutdown();self.server.server_close();self.thread.join()
- def call(self,path,value=None,cookie=None,origin='https://orangepi-drone.local:8446'):
-  headers={'Host':'orangepi-drone.local:8446','Origin':origin,'Content-Type':'application/json'}
+ def call(self,path,value=None,cookie=None,origin='https://example-pi.local:8446'):
+  headers={'Host':'example-pi.local:8446','Origin':origin,'Content-Type':'application/json'}
   if cookie is None:headers['Authorization']='Bearer '+self.token
   else:headers['Cookie']=cookie
   c=HTTPConnection(*self.server.server_address,timeout=3);c.request('POST',path,json.dumps(value or {}),headers);r=c.getresponse();result=r.status,dict(r.headers),r.read();c.close();return result

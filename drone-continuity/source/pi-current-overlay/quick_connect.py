@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 PATH = Path('/run/user/1000/axl-field-pair/pair.sock')
-PREFIX = 'https://orangepi-drone.local:8446/#join='
+PREFIX = 'https://example-pi.local:8446/#join='
 
 
 class PairingCodes:

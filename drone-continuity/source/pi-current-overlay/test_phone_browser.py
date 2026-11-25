@@ -73,7 +73,7 @@ class PhoneBrowserTests(unittest.TestCase):
             c=HTTPConnection('127.0.0.1',server.server_port,timeout=2)
             c.request('POST',path,json.dumps({'stop':True}),headers)
             r=c.getresponse();r.read();status=r.status;c.close();return status
-        headers={'Host':'orangepi-drone.local:8445','Origin':'https://orangepi-drone.local:8445','Content-Type':'application/json','Authorization':'Bearer '+self.token}
+        headers={'Host':'example-pi.local:8445','Origin':'https://example-pi.local:8445','Content-Type':'application/json','Authorization':'Bearer '+self.token}
         try:
             self.assertEqual(call('/location',headers),200)
             self.assertEqual(call('/api/input',headers),404)

@@ -75,7 +75,7 @@ def handler_for(config, assets=ASSETS, dispatch=helper, snapshot=read_snapshot, 
 
         def host_ok(self):
             return (len(self.headers.get_all('Host', [])) == 1 and
-                    self.headers.get('Host') in {'orangepi-drone.local:8446', '192.168.1.176:8446'})
+                    self.headers.get('Host') in {'example-pi.local:8446', '192.168.1.176:8446'})
 
         def do_GET(self):
             if not self.host_ok():
@@ -84,7 +84,7 @@ def handler_for(config, assets=ASSETS, dispatch=helper, snapshot=read_snapshot, 
             if path=='/captive-portal':
                 ip=self.client_address[0]
                 captive=ip.startswith('10.42.0.') and ip!='10.42.0.2' and reviewed.get(ip)!=join_epoch(ip)
-                return self.reply(200,{'captive':captive,'user-portal-url':'https://orangepi-drone.local:8446/?setup=1'},'application/captive+json')
+                return self.reply(200,{'captive':captive,'user-portal-url':'https://example-pi.local:8446/?setup=1'},'application/captive+json')
             item = {'/': ('index.html', 'text/html; charset=utf-8'),
                     '/field.js': ('field.js', 'text/javascript; charset=utf-8'),
                     '/desktop.js': ('desktop.js', 'text/javascript; charset=utf-8'),

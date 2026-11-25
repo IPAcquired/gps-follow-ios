@@ -94,7 +94,7 @@ void renderPortrait(const FlightView& v,const PiSensors& observed,bool live,bool
     if(xSemaphoreTake(viewMutex,pdMS_TO_TICKS(20))==pdTRUE){notice=updateNotice;known=updatePolicyKnown;enabled=updatePolicyEnabled;xSemaphoreGive(viewMutex);}else return;
     portraitText("PI AUTOMATIC UPDATES",12,82,296,CYAN);
     portraitText(known?(enabled?"ENABLED":"DISABLED"):"POLICY NOT VERIFIED",12,119,296,AMBER);
-    portraitLines("Home Full of Beans, idle only. Debian security updates. No automatic reboot.",12,158,296,4);
+    portraitLines("YOUR_APPROVED_HOME_NETWORK, idle only. Debian security updates. No automatic reboot.",12,158,296,4);
     portraitLines("Drivers and AI artifacts need compatible reviewed releases.",12,244,296,3,MUTED);
     portraitLines(notice,12,311,296,3,AMBER);
     portraitButton(known?(enabled?"DISABLE FUTURE CHECKS":"ENABLE FUTURE CHECKS"):"WAIT FOR PI",12,376,296,29,100,250);

@@ -172,7 +172,7 @@ def update_policy_status():
         enabled = value.get('schema') == 1 and value.get('enabled') is True
     except (OSError, ValueError, TypeError):
         enabled = False
-    return {'enabled': enabled, 'home_ssid': 'Home Full of Beans',
+    return {'enabled': enabled, 'home_ssid': 'YOUR_APPROVED_HOME_NETWORK',
             'scope': 'debian_security_userspace', 'drivers_require_review': True,
             'ai_runtime_updates': 'inventory_and_review_only',
             'model_weight_promotion': False, 'automatic_reboot': False,
@@ -203,7 +203,7 @@ def dispatch(incoming):
                 current['rssi_dbm'] = rssi
         except (OSError, ValueError):
             pass
-        return {'current': current, 'saved': sorted(aps), 'usb_address': '192.168.77.2', 'direct_address': '10.42.0.1', 'password_transport': 'encrypted_ssh_tunnel_only'}
+        return {'current': current, 'saved': sorted(aps), 'usb_address': '192.168.77.2', 'direct_address': '192.0.2.10', 'password_transport': 'encrypted_ssh_tunnel_only'}
     if action == 'scan':
         flight_guard()
         accepted = wpa('SCAN') == 'OK'

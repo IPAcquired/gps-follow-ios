@@ -40,7 +40,7 @@ def display_access_point():
         address=interface_ipv4('ap0')
         bssid=Path('/sys/class/net/ap0/address').read_text().strip().lower()
         flags=int(Path('/sys/class/net/ap0/flags').read_text().strip(),16)
-        if address!='10.42.0.1' or not re.fullmatch(r'(?:[0-9a-f]{2}:){5}[0-9a-f]{2}',bssid):return {'active':False}
+        if address!='192.0.2.10' or not re.fullmatch(r'(?:[0-9a-f]{2}:){5}[0-9a-f]{2}',bssid):return {'active':False}
         return {'active':bool(flags&1),'ip':address,'bssid':bssid}
     except (OSError,ValueError):
         return {'active':False}
@@ -69,7 +69,7 @@ AI_IMPROVEMENT_ROOT = Path("/home/drone/ai-improvement")
 BATTERY_ROOT = Path("/home/drone/flight-data/batteries")
 WEIGHT_TRAINING_ROOT = Path("/home/drone/.local/share/orangepi-weight-training")
 WEIGHT_TRAINING_CONFIG = Path("/home/drone/.config/orangepi-weight-training/config.json")
-HOST = os.environ.get("ORANGEPI_COMPANION_HOST", "10.42.0.1")
+HOST = os.environ.get("ORANGEPI_COMPANION_HOST", "192.0.2.10")
 PORT = int(os.environ.get("ORANGEPI_COMPANION_PORT", "8090"))
 MIN_FREE = 5 * 1024**3
 SESSIONS: dict[str, tuple[float, str, str]] = {}
@@ -2027,7 +2027,7 @@ if __name__ == "__main__":
 
     def serve_private_ap() -> None:
         if HOST == '127.0.0.1': return
-        if HOST != '10.42.0.1': return  # no arbitrary LAN exposure
+        if HOST != '192.0.2.10': return  # no arbitrary LAN exposure
         while not stop_event.is_set():
             try:
                 ap = CompanionServer((HOST, PORT), Handler)

@@ -47,17 +47,17 @@ class ClockTests(unittest.TestCase):
     def test_rate_budget_and_expiry(self):
         with patch.object(transport.time, 'monotonic', return_value=10):
             for _ in range(12):
-                self.assertTrue(self.authority.permitted('10.42.0.10'))
-            self.assertFalse(self.authority.permitted('10.42.0.10'))
+                self.assertTrue(self.authority.permitted('192.0.2.100'))
+            self.assertFalse(self.authority.permitted('192.0.2.100'))
         with patch.object(transport.time, 'monotonic', return_value=71):
-            self.assertTrue(self.authority.permitted('10.42.0.10'))
+            self.assertTrue(self.authority.permitted('192.0.2.100'))
 
     def test_synchronization_query_failure_is_closed(self):
         with patch.object(transport.subprocess, 'run', side_effect=OSError):
             self.assertFalse(self.authority.synchronized())
 
     def test_listener_filter_rejects_public_and_unapproved_addresses(self):
-        for address, expected in (('10.42.0.1', {'10.42.0.1'}), ('192.168.1.10', set()), ('8.8.8.8', set())):
+        for address, expected in (('192.0.2.10', {'192.0.2.10'}), ('192.168.1.10', set()), ('8.8.8.8', set())):
             with patch.object(transport, 'interface_ipv4', return_value=address) as command:
                 self.assertEqual(transport.interface_addresses([transport.ipaddress.ip_network('10.42.0.0/24')]), expected)
             command.assert_called_once_with('ap0')

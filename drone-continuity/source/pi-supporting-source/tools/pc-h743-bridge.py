@@ -15,7 +15,7 @@ if not mutex:raise OSError('Cannot acquire bridge mutex')
 if ctypes.windll.kernel32.GetLastError()==183:raise SystemExit('Bridge already running')
 (state_dir/'bridge.pid').write_text(str(os.getpid()))
 ssh=['ssh','-T','-o','BatchMode=yes','-o','ConnectTimeout=5','-o','ServerAliveInterval=3','-o','ServerAliveCountMax=2','-o','StrictHostKeyChecking=yes','-o','HostKeyAlias=192.168.0.132','-o','HostKeyAlgorithms=ssh-ed25519','-o','KexAlgorithms=curve25519-sha256','-o','IdentitiesOnly=yes','-i',r'C:\Users\Daddy Nate\.ssh\orangepi_drone_ed25519','drone@192.168.1.176','python3 /home/drone/bin/pc-h743-input.py']
-destinations=['192.168.1.176','orangepi-drone.local','10.42.0.1']
+destinations=['192.168.1.176','example-pi.local','192.0.2.10']
 target_index=0
 def publish(state,**fields):
     value=dict(state=state,updated_unix=time.time(),pid=os.getpid(),serial_writes=0,**fields)

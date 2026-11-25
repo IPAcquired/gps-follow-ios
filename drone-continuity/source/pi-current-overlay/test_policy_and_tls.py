@@ -60,7 +60,7 @@ class PolicyTests(unittest.TestCase):
     def test_endpoint_requires_live_owned_session(self):
         request = object.__new__(companion.Handler)
         request.headers = {'Content-Type': 'application/json'}
-        request.client_address = ('10.42.0.10', 12345)
+        request.client_address = ('192.0.2.100', 12345)
         request.read_json = lambda maximum: {'enabled': True}
         request.session_token = lambda: 'own-test-token'
         replies = []
@@ -69,7 +69,7 @@ class PolicyTests(unittest.TestCase):
             request.update_policy_action()
             self.assertEqual(replies[-1][0], 401)
             backend.assert_not_called()
-        with patch.dict(companion.SESSIONS, {'own-test-token': (time.monotonic() + 30, '10.42.0.10', 'unknown')}, clear=True), patch.object(companion, 'wifi_helper', return_value={'enabled': True}) as backend:
+        with patch.dict(companion.SESSIONS, {'own-test-token': (time.monotonic() + 30, '192.0.2.100', 'unknown')}, clear=True), patch.object(companion, 'wifi_helper', return_value={'enabled': True}) as backend:
             request.update_policy_action()
             self.assertEqual(replies[-1][0], 200)
             backend.assert_called_once_with({'action': 'update_policy', 'enabled': True})
@@ -81,7 +81,7 @@ class TLSIntegration(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         folder = Path(temporary.name)
         cert, key = folder / 'server.crt', folder / 'server.key'
-        subprocess.run(['openssl','req','-x509','-newkey','ec','-pkeyopt','ec_paramgen_curve:P-256','-nodes','-days','1','-subj','/CN=orangepi-drone.local','-addext','subjectAltName=DNS:orangepi-drone.local','-keyout',str(key),'-out',str(cert)],check=True,capture_output=True)
+        subprocess.run(['openssl','req','-x509','-newkey','ec','-pkeyopt','ec_paramgen_curve:P-256','-nodes','-days','1','-subj','/CN=example-pi.local','-addext','subjectAltName=DNS:example-pi.local','-keyout',str(key),'-out',str(cert)],check=True,capture_output=True)
         config = {'device_id': 'test', 'key': bytes(range(32)), 'networks': [], 'certificate': str(cert), 'private_key': str(key)}
         stop = threading.Event()
         sockets = []
@@ -98,8 +98,8 @@ class TLSIntegration(unittest.TestCase):
                 # Two peers that send no TLS handshake must not block a valid client.
                 sockets.append(socket.create_connection(('127.0.0.1', 8443), timeout=1))
                 context = ssl.create_default_context(cafile=str(cert))
-                with context.wrap_socket(socket.create_connection(('127.0.0.1', 8443), timeout=2), server_hostname='orangepi-drone.local') as client:
-                    client.sendall(b'GET /api/identity HTTP/1.0\r\nHost: orangepi-drone.local\r\n\r\n')
+                with context.wrap_socket(socket.create_connection(('127.0.0.1', 8443), timeout=2), server_hostname='example-pi.local') as client:
+                    client.sendall(b'GET /api/identity HTTP/1.0\r\nHost: example-pi.local\r\n\r\n')
                     response = b''
                     while True:
                         chunk = client.recv(4096)
@@ -108,7 +108,7 @@ class TLSIntegration(unittest.TestCase):
                         response += chunk
                     self.assertIn(b'200 OK', response)
                     self.assertIn(b'orange-pi-drone-companion-v1', response)
-                for context, name in ((ssl.create_default_context(cafile=str(cert)), 'wrong.local'), (ssl.create_default_context(), 'orangepi-drone.local')):
+                for context, name in ((ssl.create_default_context(cafile=str(cert)), 'wrong.local'), (ssl.create_default_context(), 'example-pi.local')):
                     with self.assertRaises(ssl.SSLCertVerificationError):
                         with context.wrap_socket(socket.create_connection(('127.0.0.1', 8443), timeout=2), server_hostname=name):
                             pass

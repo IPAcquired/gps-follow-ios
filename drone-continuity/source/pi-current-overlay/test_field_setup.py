@@ -30,7 +30,7 @@ class EndpointTests(unittest.TestCase):
         self.server.shutdown();self.server.server_close();self.thread.join()
 
     def call(self,path,body=b'{}',headers=None):
-        base={'Host':'orangepi-drone.local:8446','Origin':'https://orangepi-drone.local:8446',
+        base={'Host':'example-pi.local:8446','Origin':'https://example-pi.local:8446',
               'Authorization':'Bearer '+self.token,'Content-Type':'application/json'}
         base.update(headers or {})
         connection=HTTPConnection(*self.server.server_address,timeout=2)

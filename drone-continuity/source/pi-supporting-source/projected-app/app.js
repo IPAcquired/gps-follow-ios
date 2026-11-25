@@ -598,7 +598,7 @@ async function refresh(showProgress=false){
     const display=connected.length?connected.join(', '):'No connector';
     const direct=d.network.direct_link?`${d.network.direct_clients} client${d.network.direct_clients===1?'':'s'}`:'Starting';
     const performance=d.performance_guard?.state?(d.performance_guard.state.replaceAll('_',' ')):'Starting';
-    const piTransport=location.hostname==='10.42.0.1'?'Private Wi-Fi':location.hostname==='127.0.0.1'||location.hostname==='localhost'?'Encrypted computer tunnel':'Board network';
+    const piTransport=location.hostname==='192.0.2.10'?'Private Wi-Fi':location.hostname==='127.0.0.1'||location.hostname==='localhost'?'Encrypted computer tunnel':'Board network';
     $('pi-link').textContent=`Live · ${piTransport}`;$('display').textContent=display;$('direct').textContent=direct;$('performance').textContent=performance;
     const jev=d.jev_advisor||{};$('jev-state').textContent=jev.live_validation_passed?`${jev.live_responses_passed}/${jev.live_requests_tested} live checks passed`:jev.live_api_key_installed?'Live API ready':jev.simulation_passed?`${jev.passed_tests||jev.test_count}/${jev.test_count} offline checks passed`:'Not configured';
     $('sensor-display').textContent=`Display: ${display}. USB-C DisplayPort is preferred when attached.`;

@@ -35,7 +35,7 @@ class RouteTests(unittest.TestCase):
         def issue():issued.append(True);return {'ok':True}
         with patch.dict('sys.modules',{'quick_connect':types.SimpleNamespace(request_code=issue)}):
             for item,status in [(Fake(False),401),(Fake(ip='192.168.1.174'),403),
-                                (Fake(origin='https://orangepi-drone.local'),403),
+                                (Fake(origin='https://example-pi.local'),403),
                                 (Fake(body={'arm':True}),503),(Fake(),200)]:
                 item.do_POST();self.assertEqual(item.response[0],status)
         self.assertEqual(len(issued),1)

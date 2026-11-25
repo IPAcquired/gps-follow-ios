@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <stdio.h>
 int main() {
-  const char* accepted[]={"10.42.0.1","192.168.0.132","172.16.0.1","172.31.255.254"};
+  const char* accepted[]={"192.0.2.10","192.168.0.132","172.16.0.1","172.31.255.254"};
   const char* rejected[]={"","8.8.8.8","127.0.0.1","172.15.0.1","172.32.0.1","192.168.00.1","10.1.2.999","10.1.2.3.evil","10.1.2","10.1.2.3:8090","10.1.2.3/","10.1..2"};
   for(auto p:accepted) assert(privateAddress(p));
   for(auto p:rejected) assert(!privateAddress(p));

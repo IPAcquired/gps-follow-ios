@@ -1,0 +1,149 @@
+--- a/orangepi-bin-analyzer
++++ b/orangepi-bin-analyzer
+@@ -532,16 +532,81 @@
+ 
+ 
++def log_controller_group(analysis: dict) -> str:
++    """Classify the board and vehicle from complete, consistent DataFlash VER observations."""
++    count = analysis["message_types"].get("VER")
++    if type(count) is not int or count <= 0:
++        return "unassigned"
++    def integer(field, minimum, maximum):
++        stats = analysis["numeric_fields"].get("VER." + field, {})
++        value = stats.get("minimum")
++        if (type(stats.get("count")) is int and stats["count"] == count
++                and type(value) in (float, int) and minimum <= value <= maximum
++                and value == int(value) and value == stats.get("maximum") == stats.get("mean")):
++            return int(value)
++        return None
++    board = integer("APJ", 1, 65535)
++    board_type = integer("BT", 1, 255)
++    vehicle = integer("BU", 1, 255)
++    version = tuple(integer(key, 0, 255) for key in ("Maj", "Min", "Pat"))
++    if board is None:
++        return "unassigned"
++    if board_type is None or vehicle is None or None in version:
++        return f"APJ-{board}/incomplete-version"
++    return f"APJ-{board}/BT-{board_type}/BU-{vehicle}/" + ".".join(map(str, version))
++
++
++CURRENT_GROUP = "APJ-1229/BT-10/BU-2/4.7.3"
++
++
++class LogTotals:
++    def __init__(self):
++        self.files = self.bytes = self.messages = self.duration_files = 0
++        self.duration = 0.0
++        self.types = Counter()
++        self.fields = {}
++
++    def add(self, report):
++        analysis = report["analysis"]
++        self.files += 1
++        self.bytes += int(report["source"]["bytes"])
++        self.messages += int(analysis["messages"])
++        if analysis["duration_seconds"] is not None:
++            self.duration += float(analysis["duration_seconds"])
++            self.duration_files += 1
++        self.types.update(analysis["message_types"])
++        for name, value in analysis["numeric_fields"].items():
++            self.fields.setdefault(name, RunningStats()).merge(RunningStats.from_value(value))
++
++    def summary(self):
++        return {"files": self.files, "bytes": self.bytes, "messages": self.messages,
++                "duration_seconds": round(self.duration, 6), "duration_files": self.duration_files,
++                "message_types": dict(sorted(self.types.items())),
++                "numeric_fields": {name: stats.value() for name, stats in sorted(self.fields.items())}}
++
++
+ def rebuild_profile(connection: sqlite3.Connection) -> dict[str, Any]:
+-    totals: Counter[str] = Counter()
+-    field_totals: dict[str, RunningStats] = {}
+-    files = bytes_total = messages = 0
+-    duration = 0.0
+-    duration_files = 0
+-    for (report_path,) in connection.execute("SELECT report_path FROM logs ORDER BY parsed_utc"):
++    current, corpus = LogTotals(), LogTotals()
++    counts = Counter()
++    source_set = hashlib.sha256()
++    connection.execute("""CREATE TABLE IF NOT EXISTS log_controller_groups (
++        sha256 TEXT PRIMARY KEY REFERENCES logs(sha256), controller_group TEXT NOT NULL)""")
++    connection.execute("CREATE INDEX IF NOT EXISTS by_controller_group ON log_controller_groups(controller_group)")
++    for digest, report_path in connection.execute("SELECT sha256,report_path FROM logs ORDER BY sha256"):
+         try:
+             report = json.loads(Path(report_path).read_text(encoding="utf-8"))
+         except (OSError, json.JSONDecodeError):
++            report = None
++        if report is None or report.get("source", {}).get("sha256") != digest:
++            group = "unverified-report"
++        else:
++            group = log_controller_group(report["analysis"])
++        counts[group] += 1
++        connection.execute("INSERT OR REPLACE INTO log_controller_groups VALUES (?,?)", (digest, group))
++        if group == "unverified-report":
+             continue
+-        files += 1
++        corpus.add(report)
++        if group == CURRENT_GROUP:
++            current.add(report)
++            source_set.update(bytes.fromhex(digest))
+         # A new battery pack never replaces another log/monitor's observation.
+         # Physical identity remains unassigned until explicit owner confirmation.
+@@ -549,13 +614,8 @@
+         for instance, metrics in measurements.items():
+             battery_profile_store.save_observation(ROOT / "batteries", report["source"]["sha256"], instance, metrics)
+-        bytes_total += int(report["source"]["bytes"])
+-        messages += int(report["analysis"]["messages"])
+-        if report["analysis"]["duration_seconds"] is not None:
+-            duration += float(report["analysis"]["duration_seconds"])
+-            duration_files += 1
+-        totals.update(report["analysis"]["message_types"])
+-        for name, value in report["analysis"]["numeric_fields"].items():
+-            field_totals.setdefault(name, RunningStats()).merge(RunningStats.from_value(value))
+-
++    connection.commit()
++    atomic_json(PROFILE / "all-boards.json", {
++        "schema": 1, "generated_utc": utc_now(), "role": "historical_inventory_all_boards",
++        "controller_groups": dict(sorted(counts.items())), **corpus.summary()})
+     profile = {
+         "schema": 1,
+@@ -564,12 +624,10 @@
+         "may_write_ardupilot_parameters": False,
+         "may_emit_actuator_commands": False,
+-        "files": files,
+-        "bytes": bytes_total,
+-        "messages": messages,
+-        "duration_seconds": round(duration, 6),
+-        "duration_files": duration_files,
+-        "message_types": dict(sorted(totals.items())),
+-        "numeric_fields": {name: stats.value() for name, stats in sorted(field_totals.items())},
+-        "numeric_field_scope": "Combined historical statistics across logs and monitor instances; never a physical-pack battery profile. Use battery_history only after explicit pack assignment.",
++        **current.summary(),
++        "controller_group": CURRENT_GROUP,
++        "controller_groups": dict(sorted(counts.items())),
++        "source_set_sha256": source_set.hexdigest(),
++        "numeric_field_scope": "Logs reporting CORVON743V2, ChibiOS and ArduCopter 4.7.3 in VER. This groups a model and version. Individual controller and battery identity require separate evidence.",
++        "battery_history_scope": "Separate pack history across the archive, with physical identity assigned by the owner.",
+         "battery_history": battery_profile_store.summary(ROOT / "batteries", limit=200),
+     }
+@@ -815,13 +873,16 @@
+         # Atomic replacement leaves a complete old or complete new snapshot.
+         export_completed_catalog(connection)
+-        if profile_changed:
++        try:
++            prior_profile = json.loads((PROFILE / "current.json").read_bytes())
++        except (FileNotFoundError, json.JSONDecodeError):
++            prior_profile = {}
++        if profile_changed or prior_profile.get("controller_group") != CURRENT_GROUP:
+             profile = rebuild_profile(connection)
+         else:
+-            count = int(connection.execute("SELECT COUNT(*) FROM logs").fetchone()[0])
+-            profile = {"files": count}
++            profile = prior_profile
+ 
+         jev_review = "not_run_no_profile_change"
+         review_queue_artifact: str | None = None
+-        if profile_changed and profile["files"]:
++        if profile["files"] and profile["source_set_sha256"] != prior_profile.get("source_set_sha256"):
+             try:
+                 review_queue_artifact = str(queue_profile_review(profile))

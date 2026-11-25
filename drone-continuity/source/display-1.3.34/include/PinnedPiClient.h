@@ -9,7 +9,7 @@ class PinnedPiClient final : public WiFiClientSecure {
   const char* ca;
   bool handshakeAllowed=false;
  public:
-  static constexpr const char* hostname = "orangepi-drone.local";
+  static constexpr const char* hostname = "example-pi.local";
   PinnedPiClient(IPAddress target, const char* certificate):address(target),ca(certificate) {}
   // Only the network-loop preflight may allocate a TLS handshake. HTTPClient
   // reconnects during JSON parsing must fail closed and retry next iteration.

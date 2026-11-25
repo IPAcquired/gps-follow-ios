@@ -1,0 +1,9 @@
+# CORVON743V2 companion profile
+
+The companion distinguishes the board selected in the owner's hardware layout from the source of the latest MAVLink heartbeat. A recent heartbeat must come through an approved route and match both configured MAVLink identifiers before the UI can report an armed state. The native route uses Orange Pi UART0 and CORVON UART4 at 115200 baud. The separately identity-bound PC receiver also checks the connected controller's USB identity. A recent heartbeat establishes traffic on the link. A silent UART leaves physical presence unknown. Board model and installed firmware require independent evidence.
+
+The shared profile lives in controller_profile.py. The file corvon-owner-apps.patch contains changes against the previous companion release, using flat source filenames. For installations with private values on the same lines as UI labels, apply_to_private_baseline.py performs the complete set of changes without redistributing those values. Run the helper in an empty staging directory with copies of the previous release under original/. It produces reviewable candidates alongside the helper.
+
+The separate prepare_route_review.py helper prepares candidates for the Pi's root-owned monitor and udev configuration. The old board-specific USB and Bluetooth entries require the owner's privileged review. The proposal retains UART0 and the signed-in PC receiver route. A replacement USB rule needs the destination board's physical USB product and privately verified serial.
+
+The public upstream board definition is provided for offline reference. The companion checks its SHA-256 before quoting it and identifies the evidence as a published hardware definition. [Pinned ArduPilot source](https://github.com/ArduPilot/ardupilot/blob/1f36df1c90dfe41131f8fc565bbcf190be4b2a84/libraries/AP_HAL_ChibiOS/hwdef/CORVON743V2/hwdef.dat) · [ArduPilot license](https://github.com/ArduPilot/ardupilot/blob/master/COPYING.txt)

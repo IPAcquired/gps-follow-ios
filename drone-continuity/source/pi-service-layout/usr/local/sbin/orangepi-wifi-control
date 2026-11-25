@@ -175,7 +175,7 @@ def dispatch(incoming):
         _, aps = load_config()
         try: current = wpa_status()
         except OSError: current = {'state': 'UNAVAILABLE', 'ssid': '', 'ip': ''}
-        return {'current': current, 'saved': sorted(aps), 'usb_address': '192.168.77.2', 'direct_address': '10.42.0.1', 'password_transport': 'encrypted_ssh_tunnel_only'}
+        return {'current': current, 'saved': sorted(aps), 'usb_address': '192.168.77.2', 'direct_address': '192.0.2.10', 'password_transport': 'encrypted_ssh_tunnel_only'}
     if action == 'scan':
         flight_guard()
         accepted = wpa('SCAN') == 'OK'

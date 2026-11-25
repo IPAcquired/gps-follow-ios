@@ -404,13 +404,13 @@
     },
     {
       "path": "source/display-1.3.34/include/PinnedPiClient.h",
-      "bytes": 1258,
-      "sha256": "45351c7c0f37b42eb65bad24ff44168e9d2d8f51f697590092226d537c32d1ed"
+      "bytes": 1254,
+      "sha256": "5e7eb6d81db34d72e28d337bbb5a175fd34f7bd254bb796861ebccb0e66a6a74"
     },
     {
       "path": "source/display-1.3.34/include/PortraitUI.h",
-      "bytes": 13093,
-      "sha256": "72e1d0f64a48940cc3b5333b59fdb44e993cee8b7cc469de52d1d4c10a8edf0b"
+      "bytes": 13101,
+      "sha256": "6f4344381d5445e30a88c05fb1f776dcbd15ef700eca7f8f46fa776f266ecd1e"
     },
     {
       "path": "source/display-1.3.34/include/PowerGate.h",
@@ -419,8 +419,8 @@
     },
     {
       "path": "source/display-1.3.34/include/QuickConnect.h",
-      "bytes": 764,
-      "sha256": "b0d6e9453c28f43d294ef039f13f4427629c5cbd2d854df162087fda175ebce4"
+      "bytes": 760,
+      "sha256": "7cd0ad920aa8a8b7cf164071b122398df8cc4578033e406bd999c28aa20816b2"
     },
     {
       "path": "source/display-1.3.34/include/SessionPolicy.h",
@@ -509,8 +509,8 @@
     },
     {
       "path": "source/display-1.3.34/src/main.cpp",
-      "bytes": 104047,
-      "sha256": "7a35e9ca677d7e5e2ff55615e9b3fb80d2003f6d7cdf60feac9a6ce4134fb955"
+      "bytes": 104064,
+      "sha256": "60c3160f051077de2748403a3aac6ffab2ecf3f7f2932ff823e5e674e1a4fa94"
     },
     {
       "path": "source/display-1.3.34/src/Storage.cpp",
@@ -634,8 +634,8 @@
     },
     {
       "path": "source/display-1.3.34/test/quick_connect.cpp",
-      "bytes": 505,
-      "sha256": "f6a803fa4a00889444c4e98cd66a694d8d925c6c1aff923ee0b61b0610486186"
+      "bytes": 501,
+      "sha256": "3edbc8b6a86cc832ae9b5ca1fab78cbd5b74dc8bb76be16b017a4969053d2e31"
     },
     {
       "path": "source/display-1.3.34/test/session_policy.cpp",
@@ -684,8 +684,8 @@
     },
     {
       "path": "source/display-1.3.34/test/truth.cpp",
-      "bytes": 1198,
-      "sha256": "b4fcd49c5ccda0a1d69317ffc5953dfaa4cab172ac2f9489fbb42a76e996453e"
+      "bytes": 1199,
+      "sha256": "47aea8b80a4f732ed43e8f55b6dfaba107050649d21669d2360f88c1e5e7d3bb"
     },
     {
       "path": "source/display-1.3.34/test/widget_cache.cpp",
@@ -809,8 +809,8 @@
     },
     {
       "path": "source/pi-current-overlay/field_setup.py",
-      "bytes": 12200,
-      "sha256": "f18d633a89e3960f3fb54c80201ba9321bda6876b7bbbb437b999d36bc5d49df"
+      "bytes": 12192,
+      "sha256": "9715d3ffb30b79a300a2fc9ae220f7ba229db1a735f62b30e7ca4934df0f77cc"
     },
     {
       "path": "source/pi-current-overlay/field_wifi.py",
@@ -844,8 +844,8 @@
     },
     {
       "path": "source/pi-current-overlay/orangepi-companion",
-      "bytes": 117611,
-      "sha256": "a321a9e8969cb234a28b5c8066048696e3a3b6a07821e45dd61120af747e7aed"
+      "bytes": 117614,
+      "sha256": "150c5d5c2702af79d00eb60f6d21450be0e2c563c09f50c933a2f1597e440bbd"
     },
     {
       "path": "source/pi-current-overlay/orangepi-touch-desktop",
@@ -854,13 +854,13 @@
     },
     {
       "path": "source/pi-current-overlay/orangepi-wifi-control",
-      "bytes": 13796,
-      "sha256": "b22523257ac639ced6342fd4c9c2ee48de161341802ea8511575caaffcda3f39"
+      "bytes": 13805,
+      "sha256": "4f8add7ed9ad440e0861bedc65b9a79bf69c6ca0b697b70f104613b83c47698b"
     },
     {
       "path": "source/pi-current-overlay/phone_browser.py",
-      "bytes": 9840,
-      "sha256": "f8049cf1d73aa09652ec088c2f464f1a084ddcd4bee694043973dc9191d22471"
+      "bytes": 9836,
+      "sha256": "3b8db49ddb8dc3efa5bf2d485d01ef79335c3ab1e6b6ad24ec7df2ea7ca4bc42"
     },
     {
       "path": "source/pi-current-overlay/prepare-flight-training-data.py",
@@ -869,8 +869,8 @@
     },
     {
       "path": "source/pi-current-overlay/quick_connect.py",
-      "bytes": 3588,
-      "sha256": "600f9f9df93680b76bdf27752f2564afadfa29fdfb0b732f5467db086226570e"
+      "bytes": 3584,
+      "sha256": "256e6bb328e142efdc3f7063f216a1c8da9a7fb7d4f1c915af2781a9646b0ff4"
     },
     {
       "path": "source/pi-current-overlay/qwen_adapter_worker.py",
@@ -879,8 +879,8 @@
     },
     {
       "path": "source/pi-current-overlay/test_browser_desktop.py",
-      "bytes": 5363,
-      "sha256": "91fed3f6a3eb11a61ffcaacd93e6a41e8b01694081c0bd771356908ab0ea33ec"
+      "bytes": 5355,
+      "sha256": "326b8b503de7d0cce8f36836e13baaf71867338745b4c361efcb3a0fa6cf1449"
     },
     {
       "path": "source/pi-current-overlay/test_desktop_access.py",
@@ -914,13 +914,13 @@
     },
     {
       "path": "source/pi-current-overlay/test_display_transport.py",
-      "bytes": 4083,
-      "sha256": "6bf0023b6913197daf7b2ef4f4a6031575c5d88c2d5060afc60fd8f8a3dc0bb1"
+      "bytes": 4088,
+      "sha256": "a5ca976ddca4374cc832854f5ab39eb86562294b9722db0a4f8553660a3fc2ea"
     },
     {
       "path": "source/pi-current-overlay/test_field_setup.py",
-      "bytes": 13076,
-      "sha256": "10ed7cb34e25303d3d070520203e39ce46467cd82ad06da57b6661c5ea843189"
+      "bytes": 13068,
+      "sha256": "70d3ede639359c9b8134609f3c319316b706e3989c62fa9a9e0aa916e86365c8"
     },
     {
       "path": "source/pi-current-overlay/test_follow_location.py",
@@ -929,18 +929,18 @@
     },
     {
       "path": "source/pi-current-overlay/test_pairing_route.py",
-      "bytes": 2404,
-      "sha256": "291c943d4dce3567730117e0a1331dab0da07b9809ee602b29adf940f57b1d66"
+      "bytes": 2400,
+      "sha256": "4e819bb8fd8c7cf4b58cc2347f1b795d696cec083f6df244a6965a67dfe174a5"
     },
     {
       "path": "source/pi-current-overlay/test_phone_browser.py",
-      "bytes": 4602,
-      "sha256": "697311379d256cfc6acec7f26fb75235aa0027ee53e83d80b4ee6eefb833007f"
+      "bytes": 4594,
+      "sha256": "796a401cfe76a4343583f8a64f3bb55b7946ab949023dc6d0b2fde8640027108"
     },
     {
       "path": "source/pi-current-overlay/test_policy_and_tls.py",
-      "bytes": 6884,
-      "sha256": "b205a0677cd2bf65406d4f9cc1c8a9ef8e40b675fbb41e14ab0a326ffc8453a0"
+      "bytes": 6866,
+      "sha256": "f53b0b4d503364d054d1efe498c57facf739b61c35893f48be2b7d464c8a2c85"
     },
     {
       "path": "source/pi-current-overlay/test_quick_connect.py",
@@ -1059,8 +1059,8 @@
     },
     {
       "path": "source/pi-service-layout/usr/local/sbin/orangepi-direct-link",
-      "bytes": 510,
-      "sha256": "823d3be7743451f7e5f26198aea83c34832bf284d356e5a5a57ea464ed45fd09"
+      "bytes": 511,
+      "sha256": "cbbc9e94b565424882013b694cac2ac2c050f23a07345f7a37b6490c0810a492"
     },
     {
       "path": "source/pi-service-layout/usr/local/sbin/orangepi-home-maintenance",
@@ -1074,8 +1074,8 @@
     },
     {
       "path": "source/pi-service-layout/usr/local/sbin/orangepi-wifi-control",
-      "bytes": 12092,
-      "sha256": "e0fe962ca3a4ffdd91951cfd93e10bf09132e529ddf46d13deb6abd0b7c00955"
+      "bytes": 12093,
+      "sha256": "047e13d1fbf97c4b5dafc5f26d5e6cf37c29de19011248cd2a1f1f18b09e36b3"
     },
     {
       "path": "source/pi-supporting-source/companion-field/app.css",
@@ -1084,13 +1084,13 @@
     },
     {
       "path": "source/pi-supporting-source/companion-field/app.html",
-      "bytes": 9820,
-      "sha256": "37f938df54144974602d211c07f828285703f038261d38b8550198a544bfd733"
+      "bytes": 9816,
+      "sha256": "299536cbde92f194342cec1f81129b57fec90a19d39f9cc4643f530f1f0b68d2"
     },
     {
       "path": "source/pi-supporting-source/companion-field/app.js",
-      "bytes": 13238,
-      "sha256": "9d145396f671ea93307dfdb0dd3af461420dfffe0a26f0cd1c6425cb02e29252"
+      "bytes": 13234,
+      "sha256": "365465fe2f565f2265787007fb27806f3eea150b2162fa4e633ef38f10b2128e"
     },
     {
       "path": "source/pi-supporting-source/companion-field/desktop.js",
@@ -1104,8 +1104,8 @@
     },
     {
       "path": "source/pi-supporting-source/companion-field/field.js",
-      "bytes": 13238,
-      "sha256": "9d145396f671ea93307dfdb0dd3af461420dfffe0a26f0cd1c6425cb02e29252"
+      "bytes": 13234,
+      "sha256": "365465fe2f565f2265787007fb27806f3eea150b2162fa4e633ef38f10b2128e"
     },
     {
       "path": "source/pi-supporting-source/companion-field/icon.svg",
@@ -1114,8 +1114,8 @@
     },
     {
       "path": "source/pi-supporting-source/companion-field/index.html",
-      "bytes": 9867,
-      "sha256": "3c68a99b50a8c91c3d39d898891c0623e8c3b60609eb531b359932fdbe575c28"
+      "bytes": 9863,
+      "sha256": "f245fd37f22684b7270dd4001ec415e35b11feae8351ba53af30a9ca0615d797"
     },
     {
       "path": "source/pi-supporting-source/companion-field/manifest.webmanifest",
@@ -1149,8 +1149,8 @@
     },
     {
       "path": "source/pi-supporting-source/projected-app/app.js",
-      "bytes": 63857,
-      "sha256": "e3e46945fbb495bf31e7324beaafe495a71646ed350413e660ae8b3e2d154191"
+      "bytes": 63858,
+      "sha256": "61347e14ce824800c441f732b2c552939dcd4ea25ae764d0343f15a3cc5cbc3b"
     },
     {
       "path": "source/pi-supporting-source/projected-app/auth.css",
@@ -1159,8 +1159,8 @@
     },
     {
       "path": "source/pi-supporting-source/projected-app/index.html",
-      "bytes": 29308,
-      "sha256": "38a8137a8ebd11b75c54cabfe512a786efdd875dc872ccde877d223554f6cdc2"
+      "bytes": 29309,
+      "sha256": "41eba842f9b1e1e3dc57b75cf89ce92af8fa1644dd489e5c6af324ab7fc8b56c"
     },
     {
       "path": "source/pi-supporting-source/projected-app/orangepi-ai-launcher",
@@ -1184,8 +1184,8 @@
     },
     {
       "path": "source/pi-supporting-source/tools/pc-h743-bridge.py",
-      "bytes": 3858,
-      "sha256": "96ae56206f58f3f172be47fab69913b663eea7c65d5f9927c019ece442255b9d"
+      "bytes": 3855,
+      "sha256": "ec71400cf9877c0c7644eaa15b29d0acaeec34008c9e36b6577afaa5c8307dfd"
     },
     {
       "path": "source/pi-supporting-source/tools/test-desktop-encoding.py",

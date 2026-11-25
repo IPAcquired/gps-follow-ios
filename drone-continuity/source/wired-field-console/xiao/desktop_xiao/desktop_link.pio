@@ -1,0 +1,32 @@
+; GP2 clock, GP3 peripheral output, GP4 input, GP5 active-low select.
+; The CPU preloads a bit count minus one, DMA streams left-justified bytes.
+.program desktop_exchange
+    pull block
+    out x, 32
+    pull block
+    wait 1 gpio 5
+    wait 0 gpio 5
+bitloop:
+    wait 1 gpio 2
+    out pins, 1
+    wait 0 gpio 2
+    in pins, 1
+    jmp x-- bitloop
+    irq 0
+    wait 1 gpio 2
+    jmp pin park
+    irq 2
+park:
+    jmp park
+
+; Separate pad direction from data so a partial transfer always releases MISO.
+.program desktop_gate
+    wait 1 gpio 5
+    wait 0 gpio 5
+    set pindirs, 1
+public selected:
+    wait 1 gpio 5
+    set pindirs, 0
+    irq 1
+park:
+    jmp park

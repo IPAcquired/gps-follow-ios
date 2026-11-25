@@ -87,7 +87,7 @@ def handler_for(access, assets=ASSETS):
 
         def valid_host(self):
             host = self.headers.get('Host', '')
-            return host in {'orangepi-drone.local:8445', '192.168.1.176:8445'}
+            return host in {'example-pi.local:8445', '192.168.1.176:8445'}
 
         def do_GET(self):
             if not self.valid_host():

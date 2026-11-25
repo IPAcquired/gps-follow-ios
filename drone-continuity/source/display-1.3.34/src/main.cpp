@@ -418,7 +418,7 @@ void render() {
     String notice;bool known,enabled;if(xSemaphoreTake(viewMutex,pdMS_TO_TICKS(20))==pdTRUE){notice=updateNotice;known=updatePolicyKnown;enabled=updatePolicyEnabled;xSemaphoreGive(viewMutex);}else return;
     lcd.fillRect(12,76,456,196,BG);text("PI AUTOMATIC UPDATES",18,80,CYAN,4);
     text(known?(enabled?"ENABLED":"DISABLED"):"POLICY NOT VERIFIED",18,118,known?GREEN:AMBER,2);
-    text("Home Full of Beans / idle only / future checks",18,147,INK,2);
+    text("YOUR_APPROVED_HOME_NETWORK / idle only / future checks",18,147,INK,2);
     text("Debian userspace security updates. No automatic reboot.",18,176,MUTED,1);
     text("Drivers and AI artifacts require compatible reviewed releases.",18,195,MUTED,1);
     text(notice.substring(0,65),18,211,AMBER,1);
@@ -897,7 +897,7 @@ void networkTask(void*) {
     if(!desktopActive&&!maintenanceMenu&&(updateDesired>=0||!lastUpdates||uint32_t(millis()-lastUpdates)>15000)){
       int8_t desired=updateDesired;updateDesired=-1;lastUpdates=millis();DynamicJsonDocument reply(768);StaticJsonDocument<256> policyFilter;policyFilter["auto_update_policy"]["enabled"]=true;policyFilter["auto_update_policy"]["home_ssid"]=true;String body=desired>=0?String("{\"enabled\":")+(desired?"true}":"false}"):String("");
       bool ok=desired>=0?httpJson("/api/update-policy",reply,&body,nullptr,&policyFilter):httpJson("/api/updates",reply,nullptr,nullptr,&policyFilter);
-      JsonVariantConst policy=reply["auto_update_policy"];bool known=ok&&policy["enabled"].is<bool>()&&policy["home_ssid"]=="Home Full of Beans";
+      JsonVariantConst policy=reply["auto_update_policy"];bool known=ok&&policy["enabled"].is<bool>()&&policy["home_ssid"]=="YOUR_APPROVED_HOME_NETWORK";
       if(xSemaphoreTake(viewMutex,pdMS_TO_TICKS(50))==pdTRUE){updatePolicyKnown=known;if(known)updatePolicyEnabled=policy["enabled"].as<bool>();
         updateNotice=known?(desired>=0?"Policy saved for future checks.":"Policy read from verified Pi."):"Policy unavailable or change refused by Pi guards.";xSemaphoreGive(viewMutex);}
     }
@@ -1356,7 +1356,7 @@ void handleTap(uint16_t x,uint16_t y) {
   if(page==2&&y>=235&&y<=267&&x>=16&&x<236){updateMenu=true;dirty=true;
   }else if(page==4&&y>=115&&y<=144){
     entryMode=0;setupEntry=true;setupField=0;passwordVisible=false;for(auto& value:setupValues)value="";
-    setupValues[0]=ssid;setupValues[2]=endpoint.length()?endpoint:String("10.42.0.1");setupValues[3]=username;dirty=true;
+    setupValues[0]=ssid;setupValues[2]=endpoint.length()?endpoint:String("192.0.2.10");setupValues[3]=username;dirty=true;
   }else if(page==4&&y>=185&&y<205){touchThreshold=touchThreshold==350?600:touchThreshold==600?900:350;prefs.putUShort("pressure",touchThreshold);dirty=true;}
   else if(page==4&&y>=244&&y<=271&&x>=16&&x<=236){powerMenu=true;powerGate.cancel();dirty=true;}
   else if(page==4&&y>=244&&y<=271&&x>=245&&x<=465){securityMenu=true;dirty=true;}
