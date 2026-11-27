@@ -10,9 +10,46 @@ inline uint32_t lightPeriod(uint8_t speed){
 }
 inline int lightAdjustment(int x){return x<100?-10:x<190?-1:x<290?0:x<390?1:10;}
 inline void selectBeacon(uint8_t& mode,uint8_t& pattern){if(mode==4)pattern=(pattern+1)%4;else mode=4;}
-inline RgbLight lightPattern(uint8_t mode,uint8_t color,uint8_t brightness,uint32_t now,uint8_t beaconPattern=0,uint8_t speed=29){
+// The service samples the rainbow clock at the same 2 ms interval as the LEDs.
+// Accumulating elapsed time preserves the visible hue when the speed changes.
+inline uint32_t rainbowCycleMs(uint8_t speed) {
+  const uint32_t rate = speed >= 100 ? 20 : lightPeriod(speed);
+  return 768 + 15 * rate;
+}
+class RainbowClock {
+  uint32_t phase_ = 0, sampled_ = 0, cycle_ = 0;
+ public:
+  void reset() { phase_ = 0; cycle_ = 0; }
+  uint16_t sample(uint32_t now, uint8_t speed) {
+    if (cycle_) {
+      const uint32_t elapsed = now - sampled_;
+      phase_ += uint32_t((uint64_t(elapsed % cycle_) << 32) / cycle_);
+    }
+    sampled_ = now;
+    cycle_ = rainbowCycleMs(speed);
+    return uint16_t((uint64_t(phase_) * 1536) >> 32);
+  }
+};
+inline RgbLight rainbowPixel(uint16_t hue, uint8_t brightness) {
+  // Smoothstep the changing channel at each primary/secondary colour. One
+  // channel always remains at full requested brightness, even at level 1.
+  const uint32_t t = hue & 255;
+  const uint32_t eased = (t * t * (765 - 2 * t) + 32512) / 65025;
+  const uint8_t rise = uint8_t((eased * brightness + 127) / 255);
+  const uint8_t fall = uint8_t(brightness - rise);
+  switch (hue >> 8) {
+    case 0: return {brightness, rise, 0};
+    case 1: return {fall, brightness, 0};
+    case 2: return {0, brightness, rise};
+    case 3: return {0, fall, brightness};
+    case 4: return {rise, 0, brightness};
+    default: return {brightness, 0, fall};
+  }
+}
+inline RgbLight lightPattern(uint8_t mode,uint8_t color,uint8_t brightness,uint32_t now,uint8_t beaconPattern,uint8_t speed,uint16_t hue){
   const RgbLight palette[]={{255,255,255},{255,0,0},{0,255,0},{0,0,255},{0,255,255},{255,0,255},{255,120,0},{255,65,0},{255,255,0},{75,0,130},{148,0,255}};
   if(mode==0||mode>5)return {0,0,0};
+  if(mode==3)return rainbowPixel(hue,brightness);
   if(mode==5)return {brightness,brightness,brightness};
   uint8_t chosen=color%LIGHT_COLOR_COUNT;
   if(speed>=100){RgbLight rgb=palette[chosen];return {uint8_t(rgb.r*brightness/255),uint8_t(rgb.g*brightness/255),uint8_t(rgb.b*brightness/255)};}
@@ -24,8 +61,6 @@ inline RgbLight lightPattern(uint8_t mode,uint8_t color,uint8_t brightness,uint3
   }
   RgbLight rgb=palette[chosen];uint32_t level=brightness;
   if(mode==2){uint32_t phase=now%(period*2);level=uint32_t(brightness)*(phase<period?phase:period*2-phase)/period;}
-  if(mode==3){uint32_t hue=(uint64_t(now)*100/period)%1536,sector=hue/256,step=hue%256;
-    switch(sector){case 0:rgb={255,uint8_t(step),0};break;case 1:rgb={uint8_t(255-step),255,0};break;case 2:rgb={0,255,uint8_t(step)};break;case 3:rgb={0,uint8_t(255-step),255};break;case 4:rgb={uint8_t(step),0,255};break;default:rgb={255,0,uint8_t(255-step)};}}
   if(mode==4&&now%period>=(speed>=60?period/2:period*3/10))level=0;
   return {uint8_t(rgb.r*level/255),uint8_t(rgb.g*level/255),uint8_t(rgb.b*level/255)};
 }

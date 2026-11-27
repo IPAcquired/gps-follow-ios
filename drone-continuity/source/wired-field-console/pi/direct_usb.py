@@ -11,7 +11,7 @@ from serial.tools import list_ports
 
 PAIRED_BUILD = "flight-team-display-1.3.34-wired-paired"
 SUPPORTED_BUILDS = (PAIRED_BUILD, PAIRED_BUILD + "-r2", PAIRED_BUILD + "-r3",
-                    PAIRED_BUILD + "-r3.1", PAIRED_BUILD + "-r3.2")
+                    PAIRED_BUILD + "-r3.1", PAIRED_BUILD + "-r3.2", PAIRED_BUILD + "-r3.3")
 DIRECT_ROUTE = Path.home() / ".config/orange-pi-wired-desktop/direct-topology"
 
 def find_direct(expected_mac):

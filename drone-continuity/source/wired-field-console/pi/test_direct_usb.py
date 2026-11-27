@@ -52,7 +52,7 @@ class DirectTests(unittest.TestCase):
         self.assertEqual(dev.writes,[])
 
     def test_reviewed_alert_revision_shares_pairing(self):
-        for revision in ("-r2","-r3","-r3.1","-r3.2"):
+        for revision in ("-r2","-r3","-r3.1","-r3.2","-r3.3"):
             dev=FakeScreen();dev.version=PAIRED_BUILD+revision
             DirectWire(dev,MAC,lambda:None).begin()
 

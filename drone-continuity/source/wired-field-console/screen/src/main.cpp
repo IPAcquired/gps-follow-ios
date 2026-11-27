@@ -62,6 +62,7 @@ portMUX_TYPE wiredNoticeLock=portMUX_INITIALIZER_UNLOCKED;
 bool wiredPriorityCard=false,wiredCardWaitRelease=false;
 uint32_t wiredLastInteraction=0;
 bool wiredSafetyPause();
+void reportWiredGuard(const char* reason);
 const char* wiredGuardReason();
 bool wiredPriorityActive();
 wirednotice::Notice wiredNoticeNow();
@@ -119,7 +120,7 @@ volatile bool networkParked=false;
 uint32_t sleepRequestedAt=0;
 String renderSignature, cardSignatures[4];
 uint16_t cardAccents[4]={};uint32_t cardBodyDraws=0,sideBarDraws=0;
-constexpr const char* VERSION="flight-team-display-1.3.34-wired-paired-r3.2";
+constexpr const char* VERSION="flight-team-display-1.3.34-wired-paired-r3.3";
 Gesture touchGesture;
 uint32_t tapsSeen=0,swipesSeen=0;
 volatile bool quickJoin=false;
@@ -359,6 +360,19 @@ void frame() {
     lcd.drawCentreString(names[i],x+44,289,1);
   }
 }
+void drawWiredMenuStatus(bool full){
+  static uint32_t shown=UINT32_MAX;static bool hadIssue=false;
+  const bool issue=wiredViewer.showIssue();
+  if(!full&&shown==wiredViewer.connectionRevision&&hadIssue==issue)return;
+  shown=wiredViewer.connectionRevision;
+  if(issue||hadIssue){
+    const int x=portrait()?12:57,y=portrait()?67:39,w=portrait()?296:232;
+    lcd.fillRect(x,y,w,9,BG);
+    if(issue){text(wiredentry::message(wiredViewer.connection).label,x,y,AMBER,1);wiredViewer.drewStatus("menu_banner");}
+    else if(!portrait())text("YOUR DRONE. ONE CLEAR VIEW.",x,y,MUTED,1);
+  }
+  hadIssue=issue;
+}
 void drawDisplayBatteryHeader(){
   bool fresh=batteryFresh();int pct=fresh?displayBatteryEstimate(localBatteryVoltage):-1;
   uint16_t color=!fresh?MUTED:pct<=10?TFT_RED:pct<=25?AMBER:GREEN;
@@ -425,19 +439,20 @@ void render() {
   else if(backgroundMenu)signature=String("background|")+backgroundEffect+"|"+backgroundColor+"|"+backgroundFollowsTheme;
   else if(appearanceMenu)signature=String("appearance|")+uiTheme+"|"+themeColors[uiTheme]+"|"+lightMode+"|"+lightColor+"|"+lightBrightness+"|"+beaconPattern+"|"+lightSpeed;
   if(page==0&&!powerMenu&&!storageMenu&&!maintenanceMenu&&!updateMenu&&!quickJoin&&!setupEntry&&telemetryPage<0)signature+="|"+String(millis()/500);
-  signature+="|"+displayBatteryLabel();
+  signature+="|"+displayBatteryLabel()+"|"+String(wiredViewer.connectionRevision)+"|"+wiredViewer.showIssue();
   if(!dirty&&signature==renderSignature)return;
   String scene=String(screenRotation)+"|"+page+"|"+telemetryPage+"|"+powerMenu+"|"+maintenanceMenu+"|"+storageMenu+"|"+updateMenu+"|"+quickJoin+"|"+securityMenu+"|"+setupEntry+"|"+keyboardVisible+"|"+(setupEntry?setupField:0)+"|"+appearanceMenu+"|"+backgroundMenu+"|"+uiTheme+"|"+backgroundEffect+"|"+backgroundColor;
   scene+="|"+String(themeColors[uiTheme])+"|"+xiaoLightsMenu;
   bool sceneChanged=scene!=lastScene;
   bool full=dirty||sceneChanged; renderSignature=signature; ++framesDrawn;
-  if(sceneChanged){lastScene=scene;widgetCache.reset();for(auto& s:cardSignatures)s="";}
+  if(sceneChanged){lastScene=scene;wiredViewer.statusPlace="none";widgetCache.reset();for(auto& s:cardSignatures)s="";}
   if(telemetryPage>=0){dirty=false;uint32_t began=micros();drawTelemetryDetails(sceneChanged);if(telemetryPage>=6&&telemetryPage<=8)faultRenderMaxUs=max(faultRenderMaxUs,uint32_t(micros()-began));return;}
   if(portrait()){dirty=false;entryValueDirty=false;renderPortrait(v,observed,live,sceneChanged);return;}
   if(sceneChanged)frame();
   // A button edit may invalidate the body, but never clears the whole screen.
   else if(full){lcd.fillRect(12,76,456,196,BG);for(auto& s:cardSignatures)s="";}
   drawDisplayBatteryHeader();
+  drawWiredMenuStatus(full);
   dirty=false;
   if(xiaoLightsMenu){renderXiaoLights(full);return;}
   if(backgroundMenu){renderBackground(full);return;}
@@ -551,6 +566,10 @@ void render() {
     }
     text("Missing or stale sensor data never means clear space.",17,258,AMBER,1);
   } else if (page==2) {
+    const auto status=wiredentry::message(wiredViewer.connection);
+    lcd.fillRect(16,99,448,12,BG);text(status.label,16,101,wiredViewer.showIssue()?AMBER:MUTED,1);
+    wiredViewer.drewStatus("pi_page");
+    lcd.fillRect(16,224,448,10,BG);if(wiredViewer.showIssue())text(status.help,16,225,MUTED,1);
     if(!full)return;
     text("PI ON YOUR PHONE",16,82,CYAN,2);
     lcd.fillRoundRect(16,113,448,111,8,PANEL);
@@ -1205,9 +1224,10 @@ void serialInput() {
           report["notice_level"]=wirednotice::label(wiredNoticeNow().level);
           report["route"]=wiredViewer.present()?(wiredViewer.usbActive()?"direct_usb":"xiao_spi"):"none";
           report["back"]=wiredViewer.dismissed();report["paints"]=wiredViewer.paints();
+          report["wired_notice_place"]=wiredViewer.statusCurrent()?wiredViewer.statusPlace:"none";
           report["pixels"]=wiredViewer.pixelsDrawn();report["touches"]=wiredViewer.touches();
           report["handshakes"]=wiredViewer.handshakes();
-          report["features"]=wiredViewer.pictures.flags()|2|8|16;report["desktop_zoom"]=wiredViewer.zoomLevel();report["zoom_pending"]=wiredViewer.zoomWaiting();report["codec_memory"]=wiredViewer.pictures.reserved()?"reserved":"self_test_failed";report["jpeg_capacity"]=wiredViewer.pictures.reserved()?picturestore::Bytes:0;report["loop_stack_watermark"]=uxTaskGetStackHighWaterMark(nullptr);report["jpeg_frames"]=wiredViewer.pictures.frames;
+          report["features"]=wiredViewer.pictures.flags()|2|8|16|32;report["wired_connection"]=wiredentry::message(wiredViewer.connection).label;report["desktop_zoom"]=wiredViewer.zoomLevel();report["zoom_pending"]=wiredViewer.zoomWaiting();report["codec_memory"]=wiredViewer.pictures.reserved()?"reserved":"self_test_failed";report["jpeg_capacity"]=wiredViewer.pictures.reserved()?picturestore::Bytes:0;report["loop_stack_watermark"]=uxTaskGetStackHighWaterMark(nullptr);report["jpeg_frames"]=wiredViewer.pictures.frames;
           report["zlib_tiles"]=wiredViewer.pictures.tiles;report["decode_errors"]=wiredViewer.pictures.failures;
           report["jpeg_receive_ms"]=wiredViewer.pictures.receiveMs;report["jpeg_commit_ms"]=wiredViewer.pictures.commitMs;
           report["uptime_ms"]=millis();report["reset_reason"]=int(esp_reset_reason());report["spi_promotions"]=wiredViewer.fastPromotions;report["led_sideband_frames"]=wiredViewer.sidebandReplies;
@@ -1216,6 +1236,8 @@ void serialInput() {
           report["spi_fast"]=wiredViewer.fastSpi();report["spi_fast_xfers"]=wiredViewer.fastTransfers;report["spi_fallbacks"]=wiredViewer.fastFallbacks;report["spi_crc_errors"]=wiredViewer.crcErrors;
           report["input_overflows"]=wiredViewer.droppedInputs;report["input_receipts"]=wiredViewer.keys.accepted;
           auto lights=report.createNestedObject("xiao_lights");lights["available"]=xiaoLights.ready();lights["pending"]=xiaoLights.pending();lights["revision"]=xiaoLights.revision;
+          lights["setting_error"]=xiaoLights.applyNote();
+          lights["acks"]=xiaoLights.acknowledgements;lights["timeouts"]=xiaoLights.timeouts;
           if(xiaoLights.ready()){const auto& c=xiaoLights.confirmed;lights["mode"]=c.mode;lights["color"]=c.color;lights["brightness"]=c.brightness;lights["pattern"]=c.pattern;lights["speed"]=c.speed;lights["yellow"]=c.yellow;lights["r"]=xiaoLights.rgb[0];lights["g"]=xiaoLights.rgb[1];lights["b"]=xiaoLights.rgb[2];lights["duty"]=xiaoLights.duty;lights["power"]=xiaoLights.power;}
           String encoded;serializeJson(report,encoded);encoded+='\n';Serial.print(encoded);
         } else if (!strcmp(action,"telemetry")) flightJson(doc["flight"],"USB TELEMETRY BRIDGE");
@@ -1573,7 +1595,12 @@ void handleTap(uint16_t x,uint16_t y) {
   if(page==2&&y>=235&&y<=267&&x>=246&&x<464){
     if(!touchReady){calibrate();return;}
     wiredViewer.select();
-    if(wiredViewer.canOpen()&&!wiredSafetyPause())startWiredViewer();
+    const char* guard=wiredGuardReason();
+    if(strcmp(guard,"clear"))reportWiredGuard(guard);
+    else if(!wiredViewer.enrolled())wiredViewer.report(wiredentry::State::NotPaired);
+    else if(!wiredViewer.present())wiredViewer.report(xiaoLights.ready()?wiredentry::State::HelperOnly:wiredentry::State::Waiting);
+    else startWiredViewer();
+    dirty=true;
     return;
   }
 
@@ -1633,15 +1660,28 @@ void loop() {
   static uint32_t noticeAt=0;
   if(uint32_t(millis()-noticeAt)>=180){noticeAt=millis();wiredViewer.setNotice(lcd,wiredNoticeNow());}
   if(!sleepPending){
-    uint32_t previous=xiaoLights.revision;xiaoLights.service(xiaoLightsMenu);
+    static bool watchingDismissed=false;
+    static uint32_t physicalProbeAt=0;
+    bool watch=wiredViewer.watchHarness();
+    if(watch&&!watchingDismissed)xiaoLights.beginDetachWatch();
+    watchingDismissed=watch;
+    uint32_t now=millis();
+    if(!xiaoLightsMenu&&!wiredViewer.active()&&wiredViewer.enrolled()&&(watch||!wiredViewer.present())&&
+       !xiaoLights.pending()&&uint32_t(now-physicalProbeAt)>=(watch?500u:1600u)){
+      physicalProbeAt=now;xiaoLights.probe(true);
+    }
+    uint32_t previous=xiaoLights.revision;xiaoLights.service(xiaoLightsMenu&&!wiredViewer.active());
+    if(watch&&xiaoLights.physicallySilent())wiredViewer.harnessDetached();
+    wiredViewer.checkPhysicalHelper(xiaoLights.ready(),xiaoLights.physicallySilent(),now);
     if(xiaoLightsMenu&&previous!=xiaoLights.revision)dirty=true;
   }
   if(wiredViewer.active()){
-    bool priority=wiredPriorityActive();
+    const char* guard=wiredGuardReason();bool safe=!strcmp(guard,"clear"),priority=!strcmp(guard,"new serious alert");
+    if(!safe)reportWiredGuard(guard);
     bool penDown=digitalRead(36)==LOW,sideband=xiaoLights.pending();
-    if(!wiredViewer.step(lcd,touchThreshold,!wiredSafetyPause()&&!powerMenu&&!sleepPending&&touchReady,penDown,sideband)){
+    if(!wiredViewer.step(lcd,touchThreshold,safe&&!powerMenu&&!sleepPending&&touchReady,penDown,sideband)){
       finishWiredViewer();
-      if(priority&&!powerMenu&&!sleepPending&&!strcmp(wiredGuardReason(),"new serious alert")){
+      if(priority&&!powerMenu&&!sleepPending){
         wiredPriorityCard=true;wiredCardWaitRelease=true;paintWiredPriorityCard(wiredNoticeNow());
       }
     }
@@ -1662,12 +1702,18 @@ void loop() {
   if(waitTouchRelease){if(digitalRead(36)!=LOW)waitTouchRelease=false;delay(8);return;}
   uint16_t x=0,y=0;bool touched=touchReady&&lcd.getTouch(&x,&y,touchThreshold);
   if(touched)wiredLastInteraction=millis();
-  if(wiredViewer.canOpen() && touchReady && !touched && !touchGesture.active &&
-     (page==0||page==2) && telemetryPage<0 && !powerMenu && !sleepPending &&
-     !storageMenu&&!securityMenu&&!maintenanceMenu&&!appearanceMenu&&!backgroundMenu&&!xiaoLightsMenu&&!updateMenu&&
-     !setupEntry&&!keyboardVisible&&!quickJoin&&!ownerUnlockPending&&!maintenanceAccepted&&
-     uint32_t(millis()-wiredLastInteraction)>2500&&!wiredSafetyPause()) {
-    startWiredViewer();return;
+  bool protectedPage=powerMenu||sleepPending||calibrating||securityMenu||maintenanceMenu||setupEntry||keyboardVisible||
+    quickJoin||ownerUnlockPending||maintenanceAccepted||wiredPriorityCard||passwordVisible||wifiTrial.active();
+  bool operation=(storageMenu&&(info.state==1||info.state==5||info.state==6))||updateDesired>=0||(xiaoLightsMenu&&xiaoLights.pending());
+  if(wiredViewer.canOpen()&&page==3&&!protectedPage){
+    if(xSemaphoreTake(viewMutex,0)==pdTRUE){operation=operation||aiUi.phase==AiUiState::Waiting;xSemaphoreGive(viewMutex);}
+    else operation=true;
+  }
+  if(wiredViewer.canOpen()&&wiredentry::mayOpen(touchReady,touched,touchGesture.active,uint32_t(millis()-wiredLastInteraction),
+                                              protectedPage,operation,false)) {
+    const char* guard=wiredGuardReason();
+    if(!strcmp(guard,"clear")){startWiredViewer();return;}
+    reportWiredGuard(guard);
   }
   const bool pad=false;
   bool navigation=!pad&&(!(setupEntry||keyboardVisible)||y<75||y>=(portrait()?440:278));
@@ -1708,6 +1754,12 @@ const char* wiredGuardReason(){
   return "clear";
 }
 bool wiredSafetyPause(){return strcmp(wiredGuardReason(),"clear")!=0;}
+void reportWiredGuard(const char* reason){
+  if(!strcmp(reason,"armed"))wiredViewer.report(wiredentry::State::Armed);
+  else if(!strcmp(reason,"airborne"))wiredViewer.report(wiredentry::State::Airborne);
+  else if(!strcmp(reason,"controller source mismatch"))wiredViewer.report(wiredentry::State::Source);
+  else if(!strcmp(reason,"new serious alert"))wiredViewer.report(wiredentry::State::Alert);
+}
 void paintWiredPriorityCard(const wirednotice::Notice& notice){
   static wirednotice::Notice prior;
   if(!dirty&&prior.level==notice.level&&!strcmp(prior.text,notice.text))return;

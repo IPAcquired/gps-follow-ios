@@ -1,8 +1,8 @@
 """Compile the production CDC/session handlers with a deterministic host HAL."""
 from pathlib import Path
 import subprocess
-import tempfile
 import sys
+import tempfile
 
 root=Path(__file__).resolve().parent
 source=(root/"desktop_xiao/desktop.cpp").read_text()
@@ -45,6 +45,7 @@ unit += r'''
 void expect(const char*s){assert(count==1); assert(std::string(outgoing[head])==std::string(s)+"\n"); head=count=0;}
 int main(){
   command("HELLO");expect("DESKTOP XIAO 1");
+  command("LEDVER");expect("LEDVER 2 CONTINUOUS-RAINBOW");
   command("INFO");expect("INFO XIAO-PAIR-LIGHTS 1 PIO-DMA PWM");
   command("LED?");expect("LED 0 0 64 0 29 0 0 0 0 0 0 0");
   command("STATS");expect("STATS 0 0 0 0 0 0 0");
@@ -77,9 +78,10 @@ int main(){
   puts("PASS: firmware CDC identity, session, stale-event suppression, malformed/retried PUT, ACK after display response, reconnect and overflow.");
 }
 '''
-with tempfile.TemporaryDirectory() as folder:
-    dist=Path(folder)
-    mock=dist/'verify_cdc.cpp';mock.write_text(unit)
+with tempfile.TemporaryDirectory(prefix='wired-cdc-') as scratch:
+    dist=Path(scratch)
+    mock=dist/'verify_cdc.cpp'; mock.write_text(unit)
     native=dist/('verify_cdc.exe' if sys.platform=='win32' else 'verify_cdc')
-    subprocess.run([sys.argv[1] if len(sys.argv)>1 else 'g++','-std=c++17','-Wall','-Wextra','-Werror','-I',root,mock,'-o',native],check=True)
+    subprocess.run([sys.argv[1] if len(sys.argv)>1 else 'g++','-std=c++17','-Wall','-Wextra','-Werror',
+                    '-I',root,mock,'-o',native],check=True)
     subprocess.run([native],check=True)

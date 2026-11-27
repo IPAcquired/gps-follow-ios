@@ -6,6 +6,7 @@
 class BoardLights {
     static constexpr uint RGB=22, POWER=23, YELLOW=25;
     int sm_=-1;
+    RainbowClock rainbow_;
     uint32_t enabledAt_=0, next_=0;
     bool force_=true;
  public:
@@ -37,7 +38,7 @@ class BoardLights {
     void tick(uint32_t now){
         if(next_ && int32_t(now-next_)<0)return;
         next_=now+2;
-        auto desired=lamps::render(settings,now);
+        auto desired=lamps::render(settings,now,rainbow_);
         if(desired.y!=applied.y){
             pwm_set_gpio_level(YELLOW,256u-uint(desired.y)*256u/255u);
             applied.y=desired.y;

@@ -66,9 +66,11 @@ void renderXiaoLights(bool full){
   const char* patterns[]={"Single color","Rainbow steps","Warm / cool","Color / white"};
   const char* yellow[]={"Off","On","Follow RGB","Blink"};
   String labels[]={String("RGB  ")+modes[c.mode],String("Color  ")+colors[c.color],String("Brightness  ")+((int(c.brightness)*100+127)/255)+"%",
-      String("Beacon  ")+patterns[c.pattern],String("Speed  ")+c.speed,String("Yellow LED  ")+yellow[c.yellow]};
+      String("Beacon  ")+patterns[c.pattern],(c.mode==3&&c.speed==100)?String("100 fastest"):String("Speed  ")+c.speed,String("Yellow LED  ")+yellow[c.yellow]};
   const String title=ready?"XIAO RP2350 lights":"XIAO lights  |  Disconnected";
   if(portrait())portraitText(title,12,80,296,ready?CYAN:MUTED,2);else text(title,18,82,ready?CYAN:MUTED,2);
+    if(portrait())portraitText(xiaoLights.applyNote(),12,99,296,AMBER,1);
+    else text(xiaoLights.applyNote(),18,101,AMBER,1);
   for(int r=0;r<6;r++){
     int y=110+22*r;bool adjust=r==2||r==4;
     const char* step[]={"-10","-1","","+1","+10"};

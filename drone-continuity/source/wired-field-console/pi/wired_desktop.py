@@ -305,7 +305,7 @@ def serve(serial, worker, duration=None, *, link_factory=Link, notice=lambda nam
         with contextlib.suppress(Exception):
             link.health = lambda: None
             link.touch = lambda *args: None
-            if link.active:
+            if link.active and not getattr(link,"owns_final_clear",False):
                 link.send(CLEAR, seconds=0.35)
         with contextlib.suppress(Exception):
             link.end()

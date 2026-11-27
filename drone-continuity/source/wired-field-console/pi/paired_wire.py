@@ -17,6 +17,9 @@ ALLOWED_KEYS={"enter","escape","tab","backspace","delete","up","down","left","ri
 class LinkEnded(RuntimeError):
     pass
 
+class LocalBack(LinkEnded):
+    pass
+
 class PairWire(Link):
     def __init__(self, device, service_health, report=lambda **values:None):
         super().__init__(device, lambda *_: None, service_health)
@@ -135,7 +138,7 @@ class SecureSession:
         kind=clear[0]
         if kind==BACK and len(clear)==5:
             self.closed=True
-            raise LinkEnded("Local Back.")
+            raise LocalBack("Local Back.")
         ordinary=(kind==ACK and len(clear)==5) or (kind==TOUCH and len(clear)==12)
         control=((kind==KEY and 9<=len(clear)<=32) or (kind==INVALIDATE and len(clear)==7)
                  or (self.capabilities&16 and ((kind==ZOOM and len(clear)==8) or (kind==FOCUS and len(clear)==7))))
@@ -186,11 +189,20 @@ class SecureSession:
             confirmed=time.monotonic()
             self.scene_timings.append((accepted-start,confirmed-accepted,confirmed-start))
 
+    def blank(self,reason):
+        if self.closed or not self.channel.ready:
+            return
+        if reason not in (1,2,3,4) or not self.capabilities&32:
+            self.send(b"\x03",.45)
+            if reason not in (1,2,3,4) or not self.capabilities&32:return
+        self.send(bytes((0x0e,reason)),.45)
+
     def adapter(self,_serial,touch,health):
         session=self
         self.touch=touch
         class View:
             active=False
+            owns_final_clear=True
             def __init__(self):
                 self.health=health
                 self.touch=touch

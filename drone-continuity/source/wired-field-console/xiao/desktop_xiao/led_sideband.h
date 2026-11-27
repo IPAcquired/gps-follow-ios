@@ -6,8 +6,10 @@ namespace lamps {
 struct Settings { uint8_t mode=0, color=0, brightness=64, beacon=0, speed=29, yellow=0; };
 struct Output { uint8_t r=0,g=0,b=0,y=0,power=0; };
 
-inline Output render(const Settings &s,uint32_t now) {
-    const auto rgb=lightPattern(s.mode,s.color,s.brightness,now,s.beacon,s.speed);
+inline Output render(const Settings &s,uint32_t now,RainbowClock &clock) {
+    if(s.mode!=3)clock.reset();
+    const uint16_t hue=s.mode==3?clock.sample(now,s.speed):0;
+    const auto rgb=lightPattern(s.mode,s.color,s.brightness,now,s.beacon,s.speed,hue);
     uint8_t peak=rgb.r>rgb.g?rgb.r:rgb.g;
     if(rgb.b>peak)peak=rgb.b;
     uint8_t yellow=0;

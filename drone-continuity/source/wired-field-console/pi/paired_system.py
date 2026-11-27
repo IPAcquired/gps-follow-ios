@@ -14,9 +14,9 @@ try:
 except ImportError:
     dbus=None
 
-from desktop_source import OwnerDesktop, Pattern
+from desktop_source import DesktopUnavailable, OwnerDesktop, Pattern
+from bridge_usb import selection
 from pair_channel import pi_inner_key, screen_pair_key
-from wired_desktop import checked_port
 
 
 def private_file(path,limit):
@@ -62,24 +62,24 @@ def enrollment():
 
 
 def find_helper(topology):
-    for path in Path("/dev").glob("ttyACM*"):
-        try:
-            node=checked_port(path,topology)
-            usb=Path("/sys/bus/usb/devices")/topology
-            cookie=":".join((usb/n).read_text().strip() for n in ("busnum","devnum"))
-            return node,cookie
-        except (OSError,ValueError):
-            pass
-    return None,None
+    bridge,_=selection(topology)
+    return (bridge.node,bridge.cookie) if bridge else (None,None)
 
 
 def attach_generation(directory,cookie):
-    filename=directory/"attachment.json"
+    route,_,instance=cookie.partition(":")
+    filename=directory/("attachment-xiao.json" if route=="XIAO" else "attachment-direct.json")
     try: saved=json.loads(private_file(filename,512))
-    except (FileNotFoundError,ValueError): saved={}
+    except FileNotFoundError:
+        try:saved=json.loads(private_file(directory/"attachment.json",512))
+        except (FileNotFoundError,ValueError):saved={}
+    except ValueError:saved={}
     generation=saved.get("generation",0)
-    if saved.get("instance")!=cookie or not 0<generation<=0xffffffff:
+    old_instance=saved.get("instance")
+    same=old_instance==cookie or (route=="XIAO" and "/" in instance and old_instance=="XIAO:"+instance.split("/",1)[1])
+    if not same or type(generation) is not int or not 0<generation<=0xffffffff:
         generation=secrets.randbelow(0xffffffff)+1
+    if old_instance!=cookie or saved.get("generation")!=generation or not filename.exists():
         atomic_json(filename,{"instance":cookie,"generation":generation})
     return generation
 
@@ -131,7 +131,10 @@ class Status:
         self.set()
     def set(self,**values):
         with self.lock:
+            if values and all(self.data.get(k)==v for k,v in values.items()) and time.monotonic()-self.last_write<10:
+                return
             self.data.update(values)
+            self.last_write=time.monotonic()
             atomic_json(self.path,dict(self.data,updated_unix=int(time.time())))
 
 
@@ -148,8 +151,10 @@ class GuardedDesktop(OwnerDesktop):
         self.capture_times={}
         self.capture_lock=threading.Lock()
     def validate(self):
-        if not self.channel.ready or time.monotonic()>=self.deadline or not active_desktop():
+        if not self.channel.ready or time.monotonic()>=self.deadline:
             raise PermissionError("Paired or graphical session unavailable.")
+        if not active_desktop():
+            raise DesktopUnavailable(1)
     def open(self):
         self.validate();super().open()
     def frame(self):

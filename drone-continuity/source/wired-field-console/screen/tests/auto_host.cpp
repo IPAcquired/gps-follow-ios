@@ -24,6 +24,7 @@ bool wiredDesktopExchange(uint8_t* q,uint8_t* r,size_t n) {
 }
 bool wiredDesktopTransfer(uint8_t* q,uint8_t* r,size_t n,bool){return wiredDesktopExchange(q,r,n);}
 extern "C" {
+const char* drawn_status(){return lcd.statusLine.c_str();}
 unsigned fast_fallbacks(){return viewer.fastFallbacks;}
 unsigned fast_promotions(){return viewer.fastPromotions;}
 void light_reply(){
@@ -57,6 +58,13 @@ int keys_visible(){return viewer.keys.shown;}
 unsigned key_receipts(){return viewer.keys.accepted;}
 unsigned zoom_level(){return viewer.zoomLevel();}
 bool zoom_wait(){return viewer.zoomWaiting();}
+const char* connection_state(){return wiredentry::message(viewer.connection).label;}
+int connection_issue(){return viewer.showIssue();}
+void confirm_harness_gap(){viewer.harnessDetached();}
+void signal_helper(bool ready,bool silent){viewer.checkPhysicalHelper(ready,silent,fakeNow);}
+int auto_entry(bool calibrated,bool touched,bool gesture,unsigned idle,bool sensitive,bool operation,bool guard){
+  return wiredentry::mayOpen(calibrated,touched,gesture,idle,sensitive,operation,guard);
+}
 
 void send_spi(uint16_t seq,const uint8_t* payload,size_t len,bool crcOk){
   memset(pending,0,73); std::memcpy(pending,"DTR1",4);pending[4]=1;

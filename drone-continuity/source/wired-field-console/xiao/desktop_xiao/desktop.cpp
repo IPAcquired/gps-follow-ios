@@ -253,6 +253,7 @@ void offer(const char *arg) {
 
 void command(const char *s) {
   if(!strcmp(s,"INFO")){sendLine("INFO XIAO-PAIR-LIGHTS 1 PIO-DMA PWM");return;}
+  if(!strcmp(s,"LEDVER")){sendLine("LEDVER 2 CONTINUOUS-RAINBOW");return;}
   if(!strcmp(s,"LED?")){
     auto &l=lights.settings; auto &v=lights.applied;
     sendLine("LED %u %u %u %u %u %u %u %u %u %u %u %u",l.mode,l.color,l.brightness,

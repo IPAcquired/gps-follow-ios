@@ -63,7 +63,10 @@ class OwnerDesktop:
             raise PermissionError("Owner session expired.")
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as peer:
             peer.settimeout(2.5)
-            peer.connect(str(self.socket))
+            try:
+                peer.connect(str(self.socket))
+            except (FileNotFoundError, ConnectionRefusedError):
+                raise DesktopUnavailable(3) from None
             _, uid, _ = struct.unpack("3i", peer.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
             if uid != self.uid or stat.S_IMODE(self.socket.stat().st_mode) != 0o600:
                 raise RuntimeError("Installed owner desktop broker identity could not be verified.")
@@ -74,6 +77,10 @@ class OwnerDesktop:
                 raise RuntimeError("Desktop response exceeded its limit.")
             result = json.loads(raw)
         if result.get("ok") is not True:
+            if result.get("locked") is True and result.get("error") in (
+                    "Fresh matching disarmed controller status required",
+                    "Owner access locked: flight status is unsafe or stale"):
+                raise DesktopUnavailable(2)
             raise PermissionError("The installed desktop broker refused this session or command.")
         return result
 
@@ -111,6 +118,11 @@ class OwnerDesktop:
     def close(self):
         self.call("lock")
 
+
+class DesktopUnavailable(PermissionError):
+    def __init__(self,reason):
+        super().__init__("Desktop sharing is paused.")
+        self.reason=reason
 
 class Pattern:
     """Exercises the same pixel/input path without accessing any OS desktop."""
@@ -151,6 +163,7 @@ class FrameWorker:
         self.frame_id = 0
         self.confirmed = 0.0
         self.error = False
+        self.failure_reason = 0
         self.ready = threading.Event()
         self.thread = threading.Thread(target=self.run, daemon=True)
 
@@ -197,9 +210,10 @@ class FrameWorker:
                     continue
                 if not self.stop.is_set():
                     dispatch(command)
-        except Exception:
+        except Exception as exc:
             with self.lock:
                 self.error = True
+                self.failure_reason = exc.reason if isinstance(exc,DesktopUnavailable) else 0
             self.ready.set()
         finally:
             try:
@@ -209,6 +223,8 @@ class FrameWorker:
 
     def snapshot(self):
         with self.lock:
+            if self.error and self.failure_reason:
+                raise DesktopUnavailable(self.failure_reason)
             if self.error or (self.confirmed and time.monotonic() - self.confirmed > 1.8):
                 raise RuntimeError("Owner desktop authorization or fresh frames are unavailable.")
             return self.frame_id, self.frame, self.view

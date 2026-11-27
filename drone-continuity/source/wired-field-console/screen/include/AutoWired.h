@@ -9,6 +9,7 @@
 #include "Storage.h"
 #include "WiredPictures.h"
 #include "WiredKeys.h"
+#include "WiredEntry.h"
 
 // The paired Pi publishes a different generation for each USB attachment.
 // These beacons identify the display protocol. They never authorize data.
@@ -22,7 +23,7 @@ class WiredPresence {
     seen_ = now;
     if (previous_ != seq) { previous_ = seq; if (hits_ < 2) ++hits_; }
     if (hits_ == 2) {
-      const bool changed = current_ != gen;
+      const bool changed = current_ != gen || !present_;
       current_ = gen; present_ = true;
       return changed;
     }
@@ -33,6 +34,7 @@ class WiredPresence {
     if (uint32_t(now-seen_) > 6000) { present_ = false; hits_ = 0; pending_ = 0; }
   }
   void dismiss() { dismissed_ = current_; }
+  void detached() { *this=WiredPresence{}; }
   void select() { dismissed_ = 0; }
   bool present() const { return present_; }
   bool dismissed() const { return current_ && dismissed_ == current_; }
@@ -70,6 +72,33 @@ class AutoWired {
   uint32_t paints() const { return paints_; }
   uint32_t handshakes() const { return handshakes_; }
   bool canOpen() const { return enrolled_ && selected().wanted(); }
+  bool watchHarness()const{return !open_&&spi_.dismissed();}
+  void harnessDetached(){
+    if(!watchHarness())return;
+    spi_.detached();ackSpi_=0;
+    if(!usb_.present())report(wiredentry::State::Dropped);
+  }
+  void checkPhysicalHelper(bool ready,bool silent,uint32_t now){
+    if(open_||present()||spi_.dismissed()){checkingHelper_=false;return;}
+    if(!ready){
+      checkingHelper_=false;
+      if(silent&&connection==wiredentry::State::HelperOnly)report(wiredentry::State::Dropped);
+      return;
+    }
+    if(!checkingHelper_){checkingHelper_=true;helperSince_=now;}
+    if(uint32_t(now-helperSince_)>=1800)report(wiredentry::State::HelperOnly);
+  }
+  wiredentry::State connection=wiredentry::State::Waiting;
+  const char* statusPlace="none";
+  void drewStatus(const char* place){statusPlace=place;drawnState_=connection;}
+  bool statusCurrent()const{return drawnState_==connection&&strcmp(statusPlace,"none")!=0;}
+  uint32_t connectionRevision=0;
+  bool showIssue()const{return attempted_&&wiredentry::message(connection).issue;}
+  void report(wiredentry::State value){
+    attempted_=true;
+    if(connection==value)return;
+    connection=value;changedAt_=millis();++connectionRevision;
+  }
   void select() { spi_.select();usb_.select(); }
   void dismiss(){spi_.dismiss();usb_.dismiss();}
   void setNotice(TFT_eSPI& lcd,const wirednotice::Notice& n){
@@ -81,13 +110,14 @@ class AutoWired {
   void open(TFT_eSPI& lcd) {
     open_ = true;
     resetSession();
+    report(wiredentry::State::Checking);
     pictures.acquire();
     waitLift_ = true; back_ = false;
     drawPage(lcd);
   }
   void close(TFT_eSPI& lcd,bool dismissed) {
     if (!open_) return;
-    if (dismissed) {spi_.dismiss();usb_.dismiss();}
+    if (dismissed) {spi_.dismiss();usb_.dismiss();report(wiredentry::State::Back);}
     if (channel_.established()) {
       uint8_t clear[5]={0x23};
       put32(clear+1, channel_.rxCounter());
@@ -97,28 +127,36 @@ class AutoWired {
         else {makeRequest(q); wiredDesktopExchange(q,r,wireddesktop::PacketSize);}
       }
     }
-    resetSession();pictures.release();open_=false;
+    resetSession();pictures.release();open_=false;statusPlace="none";
     lcd.fillScreen(TFT_BLACK);
   }
   // Returns false to leave the page. A physical Back never generates a remote tap.
   bool step(TFT_eSPI& lcd,uint16_t threshold,bool permitSession,bool penDown=true,bool otherSpi=false) {
     const uint32_t now=millis();
-    spi_.expire(now);usb_.expire(now);
+    bool hadLink=present();spi_.expire(now);usb_.expire(now);
+    if(hadLink&&!spi_.present()&&!usb_.present()&&!dismissed())report(wiredentry::State::Dropped);
     bool nextUsb=!spi_.present() && usb_.present();
     if(nextUsb!=useUsb_){
       resetSession();useUsb_=nextUsb;waitLift_=true;back_=false;usbEndLen_=0;
-      if(open_)drawPage(lcd);
+      if(open_&&selected().wanted()){report(wiredentry::State::Checking);drawPage(lcd);}
     }
     if (open_ && (!permitSession || !selected().wanted())) { close(lcd,false); return false; }
     if (open_ && live_ && (!channel_.established() || uint32_t(now-heartbeat_) >= 2800)) {
-      resetSession(); waitLift_ = true; drawPage(lcd);
+      report(wiredentry::State::Stalled);resetSession(); waitLift_ = true; drawPage(lcd);
     } else if (open_ && channel_.established() && !live_ && uint32_t(now-readySince_) >= 3200) {
+      if(connection==wiredentry::State::Checking)report(wiredentry::State::NoDesktop);
       resetSession(); waitLift_=true; drawPage(lcd);
     } else if (open_ && proofPending_ && uint32_t(now-proofAt_)>=5000) {
-      resetSession();
+      report(wiredentry::State::ProofTimeout);resetSession();if(open_)drawPage(lcd);
     }
     if (open_ && !readTouch(lcd,threshold,penDown)) { close(lcd,true); return false; }
-    if(open_&&keys.full){++droppedInputs;resetSession();waitLift_=true;drawPage(lcd);}
+    if(open_&&keys.full){++droppedInputs;report(wiredentry::State::InputFailed);resetSession();waitLift_=true;drawPage(lcd);}
+    if(open_&&connection==wiredentry::State::Checking&&!proofPending_&&!channel_.established()&&uint32_t(now-changedAt_)>7000){
+      report(wiredentry::State::ProofTimeout);drawPage(lcd);
+    }
+    if(open_&&live_&&firstPaint_&&connection==wiredentry::State::FirstImage&&uint32_t(now-changedAt_)>=10000){
+      report(wiredentry::State::FirstImageDelayed);bar(lcd);
+    }
     if (open_ && !upLen_) {
       up_[0]=0x50; put32(up_+1,selected().generation()); upLen_=5;
     }
@@ -164,6 +202,9 @@ class AutoWired {
   WiredPresence spi_,usb_;
   wirednotice::Notice notice_;
   bool useUsb_=false;
+  bool attempted_=false,checkingHelper_=false;
+  wiredentry::State drawnState_=wiredentry::State::Waiting;
+  uint32_t changedAt_=0,helperSince_=0;
   WiredPresence& selected(){return useUsb_?usb_:spi_;}
   const WiredPresence& selected() const{return useUsb_?usb_:spi_;}
   bool enrolled_=false, open_=false, live_=false, waitLift_=false, back_=false;
@@ -208,15 +249,18 @@ class AutoWired {
   void drawPage(TFT_eSPI& lcd) {
     lcd.fillScreen(TFT_BLACK);lcd.setTextColor(TFT_WHITE,TFT_BLACK);
     lcd.drawString("Orange Pi controller",16,24,4);
-    lcd.drawString("Waiting for paired Pi authorization",16,89,2);
+    const auto status=wiredentry::message(connection);
+    lcd.drawString(status.label,16,89,2);lcd.drawString(status.help,16,120,2);
     bar(lcd);
+    drewStatus("viewer");
   }
   void bar(TFT_eSPI& lcd) {
     lcd.fillRect(0,wireddesktop::Height,480,24,TFT_NAVY);
     lcd.setTextColor(TFT_WHITE,TFT_NAVY);lcd.drawString("< Back",8,300,2);
     if(notice_.level==wirednotice::None){
-      const char* status=firstPaint_?"Loading desktop":focusHint_?"Tap field, reopen keys":focusRequest_?"Checking focus":"Paired desktop";
-      lcd.drawString(live_ ? status : (useUsb_?"Direct Pi USB":"XIAO connected"),94,300,2);
+      const char* status=firstPaint_?(connection==wiredentry::State::FirstImageDelayed?"First image delayed":"Loading desktop"):focusHint_?"Tap field, reopen keys":focusRequest_?"Checking focus":"Paired desktop";
+      const char* route=useUsb_&&usb_.present()?"Direct Pi USB":spi_.present()?"XIAO link":"Wired Desktop";
+      lcd.drawString(live_?status:route,94,300,2);
     }else{
       char lines[125]{};
       snprintf(lines,sizeof lines,"%s: %.110s",wirednotice::label(notice_.level),notice_.text);
@@ -228,11 +272,13 @@ class AutoWired {
       if(strlen(lines)>cols){lines[2*cols]=0;lcd.drawString(lines+cols,92,309,1);lines[cols]=0;}
       lcd.drawString(lines,92,299,1);
     }
+    if(!live_&&open_){lcd.fillRect(404,296,76,24,TFT_NAVY);lcd.setTextColor(TFT_WHITE,TFT_NAVY);lcd.drawString("Retry",411,299,2);}
     if(live_){
       lcd.fillRect(316,296,164,24,TFT_NAVY);lcd.setTextColor(TFT_WHITE,TFT_NAVY);
       char label[12];snprintf(label,sizeof label,"Zoom %ux",unsigned(zoomLevel_));
       lcd.drawString(zoomRequest_?"Updating":label,320,299,2);
       lcd.drawString(keys.shown?"Hide keys":"Keyboard",408,299,2);
+      if(notice_.level==wirednotice::None)drewStatus("viewer_bar");else statusPlace="none";
     }
   }
   bool ackOrTouch(bool caps=false) {
@@ -248,7 +294,7 @@ class AutoWired {
         if(e->opcode==0x27){clear[7]=e->kind;len=8;}
       }
     }else if(caps){
-      clear[0]=0x25;clear[1]=1;clear[2]=pictures.flags()|2|8|16;put32(clear+3,channel_.rxCounter());len=7;
+      clear[0]=0x25;clear[1]=1;clear[2]=pictures.flags()|2|8|16|32;put32(clear+3,channel_.rxCounter());len=7;
     }else{clear[0]=0x21;put32(clear+1,channel_.rxCounter());}
     return channel_.wrap(clear,len,up_,upLen_);
   }
@@ -307,6 +353,7 @@ class AutoWired {
       if (y>=wireddesktop::Height) {
         if (state_==1) { event(2,x_,y_); waitLift_=true; }
         else if (x<84) back_=true;
+        else if(x>=404&&!live_){resetSession();report(wiredentry::State::Checking);changedAt_=millis();drawPage(lcd);waitLift_=true;}
         else if(x>=404&&live_){toggleKeys(lcd);waitLift_=true;}
         else if(x>=316&&live_){toggleZoom(lcd);waitLift_=true;}
         else waitLift_=true;
@@ -336,8 +383,9 @@ class AutoWired {
     uint16_t& ack=fromUsb?ackUsb_:ackSpi_;
     if (n==13 && body[0]==5 && !memcmp(body+1,"XIAO235",7) && body[8]==1) {
       bool changed=presence.observe(get32(body+9),seq,now);
+      if(changed&&!open_&&!presence.dismissed())report(wiredentry::State::Available);
       if(changed&&!fromUsb){slowOnly_=false;fastMisses_=slowValid_=0;cooldown_=1000;}
-      if (changed && open_ && fromUsb==useUsb_) { resetSession();waitLift_=true;drawPage(lcd); }
+      if (changed && open_ && fromUsb==useUsb_) { resetSession();report(wiredentry::State::Checking);waitLift_=true;drawPage(lcd); }
       ack=seq;
       return;
     }
@@ -345,11 +393,17 @@ class AutoWired {
     if (body[0]==0x60 || body[0]==0x62) {
       uint8_t response[57]{};size_t len=0;
       bool was=channel_.established();
-      if (!channel_.onRecord(body,n,response,len)||!len||len>sizeof up_) return;
+      if (!channel_.onRecord(body,n,response,len)||!len||len>sizeof up_) {
+        if(body[0]==0x62&&proofPending_&&connection!=wiredentry::State::ProofFailed){report(wiredentry::State::ProofFailed);drawPage(lcd);}
+        return;
+      }
+      bool newChallenge=body[0]==0x60&&(!proofPending_||upLen_!=len||memcmp(up_,response,len));
       memcpy(up_,response,len);upLen_=len;ack=seq;
-      if (body[0]==0x60 && !proofPending_) {proofPending_=true;proofAt_=now;}
-      if (was && !channel_.established()) {pictures.clearView();resetLocalInput();firstPaint_=true;live_=false;state_=0;waitLift_=true;drawPage(lcd);}
-      if (!was && channel_.established()) {readySince_=now;proofPending_=false;++handshakes_;presence.seen(now);}
+      if (newChallenge) {proofPending_=true;proofAt_=now;report(wiredentry::State::Checking);
+        if(!live_)drawPage(lcd);}
+      if (was && !channel_.established()) {pictures.clearView();resetLocalInput();firstPaint_=true;live_=false;state_=0;waitLift_=true;report(wiredentry::State::Checking);drawPage(lcd);}
+      if (!was && channel_.established()) {readySince_=now;proofPending_=false;++handshakes_;presence.seen(now);
+        if(connection!=wiredentry::State::Checking){report(wiredentry::State::Checking);drawPage(lcd);}}
       return;
     }
     uint8_t clear[40];size_t len=0;
@@ -358,8 +412,10 @@ class AutoWired {
     uint32_t before=paints_;
     if (len==1 && clear[0]==4) {
       heartbeat_=now;
-      if (!live_) { live_=true;waitLift_=true;lcd.fillScreen(TFT_BLACK);bar(lcd); }
-    } else if (len==1 && clear[0]==3) {
+      if (!live_) { report(wiredentry::State::FirstImage);live_=true;waitLift_=true;lcd.fillScreen(TFT_BLACK);bar(lcd); }
+    } else if ((len==1 && clear[0]==3)||(len==2&&clear[0]==0x0e&&clear[1]>=1&&clear[1]<=4)) {
+      const wiredentry::State reasons[]={wiredentry::State::Paused,wiredentry::State::Locked,wiredentry::State::Guard,wiredentry::State::Service,wiredentry::State::OwnerPaused};
+      report(reasons[len==2?clear[1]:0]);
       live_=false;waitLift_=true;state_=0;resetLocalInput();pictures.clearView();firstPaint_=true;readySince_=now;drawPage(lcd);
     } else if(live_&&clear[0]==8&&len==3){
       uint16_t id=wireddesktop::get16(clear+1);
@@ -374,10 +430,10 @@ class AutoWired {
         if(repaint){lcd.fillRect(0,WiredKeys::Top,480,296-WiredKeys::Top,TFT_BLACK);keys.queue(0x26,0,"",event_);}
         bar(lcd);
       }
-    } else if (!live_||!paint(lcd,clear,len)) {resetSession();drawPage(lcd);return;}
-    if(firstPaint_&&paints_!=before){firstPaint_=false;bar(lcd);}
+    } else if (!live_||!paint(lcd,clear,len)) {report(wiredentry::State::FrameFailed);resetSession();drawPage(lcd);return;}
+    if(firstPaint_&&paints_!=before){firstPaint_=false;report(wiredentry::State::Live);bar(lcd);}
     ack=seq;
-    if (!ackOrTouch(len==1&&clear[0]==4)) {resetSession();drawPage(lcd);}
+    if (!ackOrTouch(len==1&&(clear[0]==4||clear[0]==3))) {report(wiredentry::State::InputFailed);resetSession();waitLift_=true;drawPage(lcd);}
   }
   bool paint(TFT_eSPI& lcd,const uint8_t* body,size_t len) {
     using namespace wireddesktop;

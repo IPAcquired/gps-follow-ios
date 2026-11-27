@@ -30,9 +30,12 @@ class Commission(unittest.TestCase):
    def run(args,**kw):
     self.assertEqual(kw["input"],mac+b"1-2");calls.append(args[-1]);return types.SimpleNamespace(stdout=inner if args[-1]=="prepare" else b"ACTIVE")
    fake_serial=contextlib.nullcontext(); fake_serial.dtr=True;fake_serial.rts=True
-   with patch.object(Path,"home",return_value=root),patch.object(setup,"owner_broker_path",return_value=path),patch.object(setup,"topology",side_effect=["1-2","1-3"]),patch.object(setup,"exchange",side_effect=exchange),patch.object(serial,"Serial",return_value=fake_serial),patch.object(setup.subprocess,"run",side_effect=run),patch.object(setup,"stage_and_install",side_effect=installed.append),patch.object(sys,"argv",["configure_pi.py","--screen-port","/dev/screen","--bridge-port","/dev/bridge"]),contextlib.redirect_stdout(io.StringIO()) as output:
+   bridge=types.SimpleNamespace(node="/dev/bridge",topology="1-3",digest="a"*64)
+   profile=root/".config/orange-pi-wired-desktop";profile.mkdir(parents=True,mode=0o700)
+   with patch.object(Path,"home",return_value=root),patch.object(setup,"owner_broker_path",return_value=path),patch.object(setup,"topology",return_value="1-2"),patch.object(setup,"chosen_bridge",return_value=bridge),patch.object(setup,"exchange",side_effect=exchange),patch.object(serial,"Serial",return_value=fake_serial),patch.object(setup.subprocess,"run",side_effect=run),patch.object(setup,"stage_and_install",side_effect=installed.append),patch.object(sys,"argv",["configure_pi.py","--screen-port","/dev/screen","--bridge-port","/dev/bridge"]),contextlib.redirect_stdout(io.StringIO()) as output:
     setup.main()
    self.assertEqual(calls,["prepare","activate"]);self.assertEqual(installed,["1-3"])
+   self.assertEqual(setup.read_pin(profile/"xiao-serial.sha256"),bridge.digest)
    self.assertFalse(fake_serial.dtr);self.assertFalse(fake_serial.rts);self.assertNotIn(inner.hex(),output.getvalue())
  def test_atomic_pair_without_prior_credentials(self):
   with tempfile.TemporaryDirectory() as tmp:

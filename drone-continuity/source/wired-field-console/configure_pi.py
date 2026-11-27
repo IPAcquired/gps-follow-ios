@@ -6,15 +6,16 @@ import os
 from pathlib import Path
 import re
 import secrets
+import stat
 import subprocess
 import sys
 import tempfile
 import time
 
-import stat
-
 HERE = Path(__file__).resolve().parent
-VERSION = 'flight-team-display-1.3.34-wired-paired-r3.2'
+sys.path.insert(0,str(HERE/'pi'))
+from bridge_usb import enumerate_bridges, pin_once, read_pin
+VERSION = 'flight-team-display-1.3.34-wired-paired-r3.3'
 
 
 def topology(port, identity):
@@ -28,6 +29,15 @@ def topology(port, identity):
     if not re.fullmatch(r'[0-9]+-[0-9]+(?:\.[0-9]+)*', ancestor.name):
         raise ValueError('Unexpected physical USB path.')
     return ancestor.name
+
+
+def chosen_bridge(port):
+    selected = Path(port).resolve(strict=True)
+    bridges = enumerate_bridges()
+    matches = [board for board in bridges if Path(board.node).resolve(strict=True)==selected]
+    if len(matches)!=1 or sum(board.digest==matches[0].digest for board in bridges)!=1:
+        raise ValueError("Select a single XIAO RP2350 with a unique readable USB identity.")
+    return matches[0]
 
 
 def exchange(port, action, **fields):
@@ -72,14 +82,17 @@ def main():
     if os.getuid()==0:raise PermissionError('Run from the local graphical desktop owner account.')
     os.umask(0o077)
     screen_path=topology(args.screen_port,(0x1a86,0x7523))
-    bridge_path=topology(args.bridge_port,(0x2886,0x0058)) if args.bridge_port else screen_path
+    bridge=chosen_bridge(args.bridge_port) if args.bridge_port else None
+    bridge_path=bridge.topology if bridge else screen_path
     profile=Path.home()/'.config/orange-pi-wired-desktop'
+    if bridge and read_pin(profile/'xiao-serial.sha256') not in (None,bridge.digest):
+        raise PermissionError('Another XIAO is already enrolled. Use the existing bridge or owner recovery.')
     broker=owner_broker_path()
     if not broker.is_socket():raise RuntimeError('The compatible local owner desktop broker must be installed and running first.')
-    import serial
     peer=broker.lstat()
     if not stat.S_ISSOCK(peer.st_mode) or peer.st_uid!=os.getuid() or stat.S_IMODE(peer.st_mode)!=0o600:
         raise PermissionError('The local desktop broker must be owned by the current user and have mode 0600.')
+    import serial
     port=serial.Serial(port=None,baudrate=115200,timeout=.25,write_timeout=1,exclusive=True)
     port.dtr=False;port.rts=False;port.port=args.screen_port
     with port:
@@ -108,6 +121,10 @@ def main():
                             tls_dns=dns,dashboard_origin='https://'+dns+':8446',home_ssid=ssid)
             if result.get('accepted') is not True:raise RuntimeError('Screen did not accept the local network policy.')
         subprocess.run(registrar+['activate'],input=bind,capture_output=True,check=True)
+    if bridge:
+        if chosen_bridge(args.bridge_port)!=bridge:
+            raise RuntimeError('The selected XIAO changed during commissioning. Recheck the cable and run setup again.')
+        pin_once(profile/'xiao-serial.sha256',bridge.digest)
     stage_and_install(bridge_path)
     print('Owner service installed. Its status confirms the first mutually authenticated desktop after attachment.')
 

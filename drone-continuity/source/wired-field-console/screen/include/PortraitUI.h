@@ -15,6 +15,13 @@ void portraitText(const String& value,int x,int y,int width=296,uint16_t color=I
   if(!widgetChanged(1,x,y,width,h,fit,color))return;
   lcd.fillRect(x,y,width,h,BG);text(fit,x,y,color,font);if(telemetryPage>=6&&telemetryPage<=8)++faultRowDraws;
 }
+void portraitWiredStatus(){
+  const auto status=wiredentry::message(wiredViewer.connection);
+  const bool issue=wiredViewer.showIssue();
+  portraitText(status.label,12,356,296,issue?AMBER:MUTED,1);
+  portraitText(issue?status.help:"",12,422,296,MUTED,1);
+  wiredViewer.drewStatus("pi_page");
+}
 void portraitLines(const String& value,int x,int y,int width,int rows,uint16_t color=INK){
   if(!widgetChanged(2,x,y,width,rows*19,value,color))return;
   lcd.fillRect(x,y,width,rows*19,BG);
@@ -83,7 +90,7 @@ void portraitKeyboard(){
 }
 void renderPortrait(const FlightView& v,const PiSensors& observed,bool live,bool full){
   portraitHitCount=0;if(full){clearDisplay(BG);drawPageBackdrop();}
-  portraitText("AI FLIGHT TEAM",12,15,230,INK,4);drawDisplayBatteryHeader();
+  portraitText("AI FLIGHT TEAM",12,15,230,INK,4);drawDisplayBatteryHeader();drawWiredMenuStatus(full);
   portraitButton("TURN",252,12,58,33,440,25);
   const char* tabs[]={"HOME","SENSE","PI","AI","SETUP"};
   for(int i=0;i<5;++i){portraitButton(tabs[i],5+i*63,440,59,34,56+i*94,292,i==page?INK:CYAN);if(i==page)lcd.drawRoundRect(5+i*63,440,59,34,5,CYAN);}
@@ -139,7 +146,8 @@ void renderPortrait(const FlightView& v,const PiSensors& observed,bool live,bool
     portraitButton("PHONE QUICK CONNECT",12,133,296,75,200,160);
     portraitLines("Scan the private QR for desktop, files and Wi-Fi setup.",12,230,296,3);
     portraitButton("PI UPDATE SETTINGS",12,310,296,43,100,250);
-    portraitButton("WIRED DESKTOP",12,374,296,43,340,250);return;}
+    portraitButton("WIRED DESKTOP",12,374,296,43,340,250);
+    portraitWiredStatus();return;}
   if(page==3){portraitText("CHAT WITH YOUR TEAM",12,82,296,CYAN);String answer,state;
     aiView(answer,state);
     portraitLines(state,12,112,296,2,AMBER);unsigned offset=min(aiOffset,unsigned(answer.length()));

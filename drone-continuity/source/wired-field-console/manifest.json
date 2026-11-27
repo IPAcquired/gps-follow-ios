@@ -1,7 +1,7 @@
 {
-  "release": "wired-field-console-r3.2",
+  "release": "wired-field-console-r3.3",
   "screen": {
-    "version": "flight-team-display-1.3.34-wired-paired-r3.2",
+    "version": "flight-team-display-1.3.34-wired-paired-r3.3",
     "board": "E32R35T / ESP32-WROOM-32E-N4",
     "application_only": true,
     "verified_app0_offset": "0x10000",
@@ -14,13 +14,13 @@
     "arduino_pico_version": "6.4.0"
   },
   "binaries": {
-    "firmware/E32R35T-r3.2-app.bin": {
-      "bytes": 1498304,
-      "sha256": "9916a08e4adeae3def9560fe0f166e3cb38f09778fee2357e5ab9bf973b44615"
+    "firmware/E32R35T-r3.3-app.bin": {
+      "bytes": 1504656,
+      "sha256": "a85c6d653cbb9147673331580015a72bd0623971fed7b6f39850b5952c226f6f"
     },
-    "firmware/XIAO-RP2350-r3.uf2": {
-      "bytes": 156160,
-      "sha256": "2ea1bdddb43a5d83129a212e84c10b6145ad8200cc23f7b36f9b7ef2ea5043d6"
+    "firmware/XIAO-RP2350-r3.3.uf2": {
+      "bytes": 156672,
+      "sha256": "ce5e12717b48ccb2aa04b8caf5a1a5ebecf21dbc0f69143e2b85c7d66d7a76ee"
     }
   }
 }

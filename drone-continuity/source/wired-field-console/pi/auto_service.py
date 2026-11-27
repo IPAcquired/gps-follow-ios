@@ -12,16 +12,20 @@ import sys
 import time
 import serial
 
-from desktop_source import FrameWorker
+from desktop_source import DesktopUnavailable, FrameWorker
+from bridge_usb import confirm_bridge, selection
 from paired_system import (Status, GuardedDesktop, GuardedPattern, attach_generation, atomic_json,
                            enrollment, find_helper, private_dir, private_file, runtime)
-from paired_wire import LinkEnded, PairWire, authenticate, wait_for_screen
+from paired_wire import LinkEnded, LocalBack, PairWire, authenticate, wait_for_screen
 from wired_desktop import serve
 from direct_usb import find_direct, open_direct
 
 
 class ModeChanged(RuntimeError):
     pass
+
+REASONS={1:"unlock the local graphical session",2:"wait for fresh, safe controller status",
+         3:"check the local desktop broker",4:"resume desktop sharing on the Pi"}
 
 class Service:
     def __init__(self):
@@ -30,6 +34,12 @@ class Service:
         self.topology=json.loads((Path(__file__).resolve().parent/"approved-usb.json").read_text())["topology"]
         self.mode="auto"
         self.last_command=""
+        # A diagnostic is one-shot. Explicit owner pause survives a service restart.
+        try:
+            last=json.loads(private_file(self.dir/"command.json",512))
+            self.last_command=last.get("request","")
+            self.mode="pause" if last.get("mode")=="pause" else "auto"
+        except (FileNotFoundError,ValueError):pass
         self.next_command=0
         self.stop=False
         self.had_peer=False
@@ -114,12 +124,23 @@ class Service:
     def run_view(self,session,source,event):
         worker=FrameWorker(source)
         worker.thread.start()
+        reason=0
         try:
             if not worker.ready.wait(3) or worker.snapshot()[1] is None:
                 raise PermissionError("Desktop guard paused.")
             serve(session.wire.serial,worker,link_factory=session.adapter,notice=event)
+        except DesktopUnavailable as error:
+            reason=error.reason
+            raise
+        except ModeChanged:
+            if self.mode=="pause":reason=4
+            raise
         finally:
-            worker.stop.set();worker.thread.join(3)
+            worker.stop.set()
+            session.touch=lambda *_:None
+            with contextlib.suppress(Exception,KeyboardInterrupt):
+                session.blank(reason)
+            worker.thread.join(3)
 
     @contextlib.contextmanager
     def open_xiao(self,node):
@@ -130,7 +151,7 @@ class Service:
     def once(self):
         self.controls()
         if self.mode=="pause":
-            self.status.set(state="paused by owner",authenticated=False)
+            self.status.set(state="paused by owner",action=REASONS[4],authenticated=False)
             return False
         key=enrollment()
         node,cookie=find_helper(self.topology)
@@ -142,25 +163,29 @@ class Service:
             alt,other_cookie=find_direct(mac)
             if alt: chosen,node,cookie="direct USB",alt,other_cookie
         if not chosen:
-            self.status.set(state="waiting for USB",route="none",authenticated=False)
+            self.status.set(state="waiting for USB",action=selection(self.topology)[1],route="none",authenticated=False)
             return False
         self.route=chosen;self.in_use=cookie
         generation=attach_generation(self.dir,chosen+":"+cookie)
-        self.status.set(state="waiting for paired screen",route=chosen,authenticated=False)
+        self.status.set(state="waiting for paired screen",action="open Wired Desktop or reconnect the screen cable",
+                        route=chosen,authenticated=False)
         opened=self.open_xiao(node) if chosen=="XIAO" else open_direct(node,mac,self.controls)
         try:
             with opened as wire:
                 try:
                     wire.begin()
                     wait_for_screen(wire,generation)
-                    self.status.set(state="authenticating screen",authenticated=False)
+                    self.status.set(state="authenticating screen",action="wait for the paired screen proof",authenticated=False)
                     session=authenticate(wire,key)
-                    if chosen=="XIAO":self.bad_count=0
+                    if chosen=="XIAO":
+                        confirm_bridge(self.topology,node,cookie,session.channel)
+                        self.bad_count=0
+                    self.status.set(action="none")
                     self.display(session,key)
                 finally:
                     with contextlib.suppress(Exception):wire.end()
         except (ValueError,RuntimeError,OSError) as exc:
-            if chosen=="XIAO" and not isinstance(exc,(ModeChanged,PermissionError)):
+            if chosen=="XIAO" and not isinstance(exc,(ModeChanged,PermissionError,LocalBack)):
                 self.bad_count+=1
             raise
         finally:
@@ -180,11 +205,19 @@ class Service:
                 except ModeChanged:
                     self.status.set(state="changing requested view",authenticated=False)
                     delay=.08;backoff=.25
+                except LocalBack:
+                    self.status.set(state="closed at touchscreen",action="open Wired Desktop to resume",authenticated=False)
+                    delay=.35;backoff=.25
+                except DesktopUnavailable as error:
+                    self.status.set(state="waiting for desktop authorization or fresh guard",
+                                    action=REASONS.get(error.reason,"check local authorization"),authenticated=False)
+                    delay=.8
                 except PermissionError:
-                    self.status.set(state="waiting for desktop authorization or fresh guard",authenticated=False)
+                    self.status.set(state="waiting for desktop authorization or fresh guard",
+                                    action="check local authorization and fresh safety status",authenticated=False)
                     delay=.8
                 except FileNotFoundError:
-                    self.status.set(state="waiting for enrollment or USB",authenticated=False)
+                    self.status.set(state="waiting for enrollment or USB",action="check pairing and USB data cable",authenticated=False)
                     delay=.8
                 except (ValueError,RuntimeError,OSError) as error:
                     safe_reasons={"The wired screen session ended.","The expected XIAO firmware did not reply.",

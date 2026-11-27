@@ -19,16 +19,18 @@ run([sys.executable,"-B",root/"tests/test_profile_standalone.py"])
 if args.staged_companion:
  run([sys.executable,"-B","test_controller_profile.py"],args.staged_companion.resolve())
 run([sys.executable,"-B",root/"tests/test_configure.py"])
+run([sys.executable,"-B",root/"tests/test_configure_bridge.py"])
 run([sys.executable,"-B",xiao/"verify_pio.py"])
 run([sys.executable,"-B",xiao/"verify_cdc.py"])
 run([sys.executable,"-B",tests/"field_log_test.py"])
 run([sys.executable,"-B",tests/"test_storage_check.py"])
+run([sys.executable,"-B",tests/"test_wired_status_rows.py"])
 with tempfile.TemporaryDirectory(prefix="wired-tests-") as scratch:
  out=Path(scratch)
  if not (args.arduinojson/"ArduinoJson.h").is_file():raise SystemExit("Pass --arduinojson with ArduinoJson 6.21.5's src directory.")
  sources=(screen/"include/PersonalizationUI.h").read_text();start=sources.index("void renderXiaoLights(")
  (out/"xiao-ui.inc").write_text(sources[start:sources.index("\n}\n",start)+2])
- for n in ("verify_packets","verify_lights"):
+ for n in ("verify_packets","verify_lights","verify_rainbow"):
   run(["g++","-std=c++17","-I",xiao,xiao/(n+".cpp"),"-o",out/n]);run([out/n])
  for n in ("test_backgrounds","test_wireless_edit","test_local_profile","test_profile","test_telemetry_filter","test_lights","test_lights_ui","test_notices"):
   run(["g++","-std=c++17","-I",tests,"-I",screen/"include","-I",out,"-I",args.arduinojson,tests/(n+".cpp"),"-o",out/n]);run([out/n])

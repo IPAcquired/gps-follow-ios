@@ -8,10 +8,11 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT.parent/"pi"))
 from pair_channel import PiChannel,screen_pair_key
 
-lib=c.CDLL(str(Path(sys.argv[1]).resolve()))
+lib=c.CDLL(str(Path(sys.argv[1]).resolve() if len(sys.argv)>1 else ROOT/"tests/auto-host-r3.so"))
 inner=bytes(range(1,33))
 key=screen_pair_key(inner,bytes([2,3,4,5,6,7]))
 on=lambda flag:bool(lib.flags()&flag)
+lib.drawn_status.restype=c.c_char_p
 def step(ms=250,permit=True):lib.step(ms,permit)
 def beacon(gen=42):return b"\x05XIAO235\x01"+struct.pack(">I",gen)
 def usb(seq=0,body=b"",permit=True):
@@ -54,8 +55,8 @@ def pieces(buf,opcode):
   yield bytes((opcode,))+struct.pack(">H",off)+buf[off:off+37]
 def revive():
  global p,seq
- setup();p=handshake();seq=40;assert msg(b'\x04')[:3]==b'\x25\x01\x1f';step(10)
-assert msg(b'\x04')[:3]==b'\x25\x01\x1f'
+ setup();p=handshake();seq=40;assert msg(b'\x04')[:3]==b'\x25\x01\x3f';step(10)
+assert msg(b'\x04')[:3]==b'\x25\x01\x3f'
 rect=b'\x01'+struct.pack(">5H",10,20,18,22,0xf800)
 assert msg(rect)[0]==0x21 and lib.at(10,20)==0xf800
 step(10);press(12,24);got=p.unwrap(usb()[2]);assert got[0]==0x22 and got[3]==1
@@ -104,14 +105,16 @@ reject(list(pieces(compressed,7))[-1]);assert not lib.tiles()
 revive();press(16,30);step(2850);assert not on(2) and not lib.keys_visible()
 revive()
 for i in range(7):press(12,20)
-assert not on(2) and lib.overflows()
+assert not on(2) and lib.overflows() and lib.drawn_status()==b'Desktop input interrupted'
+hello=PiChannel(key).hello()
+assert usb(244,hello)[1]==244 and lib.drawn_status()==b'Verifying paired Orange Pi'
 revive();press(15,306);assert not on(1) and on(32) and p.unwrap(usb()[2])[0]==0x23
 # Identical rapid edge sequence on physical SPI route, without a host poll between edges.
 lib.clear_all();assert lib.enroll(inner)
 spi(1,beacon(99));spi(2,beacon(99));step();assert on(4);lib.open_view();step(20)
 def exchange(seq,body):spi(seq,body);step(20);return spi_up()
 p=PiChannel(key);proof=p.accept(exchange(320,p.hello()));assert p.unwrap(exchange(321,proof))==b'\x20'
-assert p.unwrap(exchange(322,p.wrap(b'\x04')))[:3]==b'\x25\x01\x1f'
+assert p.unwrap(exchange(322,p.wrap(b'\x04')))[:3]==b'\x25\x01\x3f'
 press(30,40);press(30,40);got=p.unwrap(spi_up())
 for seq,state in enumerate((1,2,1,2),324):
  assert got[0]==0x22 and got[3]==state
@@ -125,4 +128,30 @@ for seq in range(440,458):
  u=p.unwrap(exchange(seq,p.wrap(b"\x04")));assert u is not None
 assert lib.fast_promotions()==1
 assert lib.probe_picture_store()==1
+lib.connection_state.restype=c.c_char_p
+def label():return lib.connection_state().decode()
+press(15,306);assert not on(1) and on(32)
+step(6100);spi(470,beacon(99));spi(471,beacon(99));step(12)
+assert on(32) and not on(4) # restarting Pi / missing beacons alone cannot override Back
+lib.confirm_harness_gap();assert not on(4) and label()=="Wired connection lost"
+spi(472,beacon(99));assert not on(4)
+spi(473,beacon(99));assert on(4) and not on(32)
+lib.clear_all();assert lib.enroll(inner);lib.signal_helper(True,False);step(1000);lib.signal_helper(True,False)
+assert not lib.connection_issue()
+step(1000);lib.signal_helper(True,False);assert lib.connection_issue() and label()=="XIAO detected; waiting for Pi"
+lib.signal_helper(False,True);assert label()=="Wired connection lost"
+for flag in (0,1,2,4,5,6):
+ args=[True,False,False,2800,False,False,False];args[flag]=not args[flag];assert not lib.auto_entry(*args)
+assert not lib.auto_entry(True,False,False,2499,False,False,False) and lib.auto_entry(True,False,False,2501,False,False,False)
+setup();p=handshake();seq=100
+assert msg(b'\x03')[:3]==b'\x25\x01\x3f' and not on(2)
+for code,expected in enumerate(("Pi desktop unavailable or locked","Pi safety check pending","Pi desktop service unavailable","Owner paused desktop sharing"),1):
+ before=lib.count_paints();assert msg(bytes((14,code)))[0]==0x21
+ assert label()==expected and lib.drawn_status().decode()==expected and not on(2) and not lib.keys_visible() and lib.count_paints()==before
+assert usb(800,b'\x0e\x01')[1]!=800 and label()=="Owner paused desktop sharing"
+msg(b'\x04');assert label()=="Waiting for first desktop image"
+msg(rect);assert label()=="Wired desktop connected" and not lib.connection_issue() and not lib.drawn_status()
+step(2900);assert label()=="Wired desktop stopped responding"
+step(6400);assert label()=="Wired connection lost" and not on(1)
+print("PASS stable SPI reattach with the same USB generation, Back suppression, physical-only status, protected UI gates and authenticated error/recovery states.")
 print("PASS direct and SPI rapid edges, duplicate receipts, queued keys, local Back/keyboard, authenticated staged JPEG, exact bounded zlib, malformed/truncated data, overflow and expiry.")
