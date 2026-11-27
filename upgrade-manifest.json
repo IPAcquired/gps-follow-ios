@@ -1,0 +1,106 @@
+{
+  "base_release": "R3.4-rc1",
+  "release": "R3.4-rc2",
+  "original_files": [
+    "README.txt",
+    "activate.py",
+    "auto_service.py",
+    "bridge_usb.py",
+    "desktop_source.py",
+    "direct_usb.py",
+    "discovery.service",
+    "display_damage.py",
+    "display_model.py",
+    "launch",
+    "pair_channel.py",
+    "paired_system.py",
+    "paired_wire.py",
+    "scene_codec.py",
+    "screen_sockets.py",
+    "test_bridge_usb.py",
+    "test_desktop.py",
+    "test_direct_scene_plans.py",
+    "test_direct_usb.py",
+    "test_display_damage.py",
+    "test_pair_service.py",
+    "test_scene_codec.py",
+    "test_screen_sockets.py",
+    "wired_desktop.py"
+  ],
+  "updates": {
+    "auto_service.py": {
+      "new": "23d6141f255ea34a2394080560288818a82764e5b20cf4e32267d5773f371704",
+      "accepted": [
+        "533240307fb249a9472d711648cdf6513e3f9999fa27d7fb134cd80a608909ce"
+      ]
+    },
+    "desktop_source.py": {
+      "new": "a23db1012c5a9105a3d9cc28d860f0258d56c5e3cf855e37804390916af31545",
+      "accepted": [
+        "8a733d5ea76c4ddd33bd0e0aeefd621534098c6338cb298dcda28f6a01b762fa"
+      ]
+    },
+    "direct_usb.py": {
+      "new": "1227545e4168d68edad4e016eaa0d0f1e4ef96e266ead2d89bd417559040f6c8",
+      "accepted": [
+        "731d7f04fdfdfadc3261d8cd510db59df399ef6a2a7af635e19a51a5110c845d"
+      ]
+    },
+    "display_damage.py": {
+      "new": "5d4bf91ca5c816110b0031ced26cef721805435d48408aebcef4a83632f3b54a",
+      "accepted": [
+        "35b57ad619895ddb561418ca55c1ce239d639ea89923a79f3f9b07fdbe9e3cb9"
+      ]
+    },
+    "display_model.py": {
+      "new": "c78ced5eecb240e5a7c9c01f28fcd5b95688a1b3280dbbb70cc5e82faa91857b",
+      "accepted": [
+        "0473324ed03e22568e6d71392394552e54153e79ab79efa2e8ee558536725cb8"
+      ]
+    },
+    "scene_codec.py": {
+      "new": "3cf770b82b1ac62a9b0bb72fb8860a673138dd2173b164222dc88001349a6e69",
+      "accepted": [
+        "bfa93fafb314cd9810f926fe908416962ede6589b4fe6617760430442da2e064"
+      ]
+    },
+    "test_display_pointer.py": {
+      "new": "1eb81da20195c64d7b4d79270fde4ca670c9387520927134c7ee77f72c7ad154",
+      "accepted": [
+        null
+      ]
+    },
+    "test_display_tty.py": {
+      "new": "9c7596bc9f1b478cea3cb223d6b73431fd5690924ba2798ef4a0d6d2b7d63ace",
+      "accepted": [
+        null
+      ]
+    },
+    "test_hub_rate.py": {
+      "new": "5662ce04a2bc94a50f71f4f71edc452e04228f54a42b5339e584078cce6348e0",
+      "accepted": [
+        null
+      ]
+    },
+    "test_idle_poll.py": {
+      "new": "87e65e0dc7160ac660b4477ba10ab611b47045ba50140a92c9c36ced9a8a7ba1",
+      "accepted": [
+        null
+      ]
+    },
+    "test_pair_service.py": {
+      "new": "a1f3f5f257f5bb749dc159972932ad134804fe29208fa1e744a7c772a056c10a",
+      "accepted": [
+        "30172d329e84cb4b77d66778e97914d37e892f83dab1bebae0cfc9fe3347bfe0"
+      ]
+    },
+    "wired_desktop.py": {
+      "new": "9f2d91f2e5944b167ce71104ef17ace4e097c342bac07832fd0e2a597eb025b3",
+      "accepted": [
+        "f321c18c4a5315aa5823f89da4443fffc3c61c52dd3811638551752142366f2b",
+        "255ba6b46231348433ef2d26b3e622faf15a8c85b94a641fc95bfda465e86fe2"
+      ]
+    }
+  },
+  "installer": "7542cb69b0a3660f95701d8b3fb509a2b77a0da425f901a7ae65fd7a6cbacbf8"
+}
