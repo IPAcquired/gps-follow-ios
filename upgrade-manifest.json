@@ -1,0 +1,67 @@
+{
+  "base_release": "R3.4-rc2",
+  "installer": "7542cb69b0a3660f95701d8b3fb509a2b77a0da425f901a7ae65fd7a6cbacbf8",
+  "original_files": [
+    "README.txt",
+    "activate.py",
+    "auto_service.py",
+    "bridge_usb.py",
+    "desktop_source.py",
+    "direct_usb.py",
+    "discovery.service",
+    "display_damage.py",
+    "display_model.py",
+    "launch",
+    "pair_channel.py",
+    "paired_system.py",
+    "paired_wire.py",
+    "scene_codec.py",
+    "screen_sockets.py",
+    "test_bridge_usb.py",
+    "test_desktop.py",
+    "test_direct_scene_plans.py",
+    "test_direct_usb.py",
+    "test_display_damage.py",
+    "test_display_pointer.py",
+    "test_display_tty.py",
+    "test_hub_rate.py",
+    "test_idle_poll.py",
+    "test_pair_service.py",
+    "test_scene_codec.py",
+    "test_screen_sockets.py",
+    "wired_desktop.py"
+  ],
+  "release": "R3.4-rc3",
+  "updates": {
+    "desktop_source.py": {
+      "accepted": [
+        "a23db1012c5a9105a3d9cc28d860f0258d56c5e3cf855e37804390916af31545"
+      ],
+      "new": "5ee15439bd34efc254a83d73c448bfad4a913c96aaa7262e2609d210fc60d845"
+    },
+    "scene_codec.py": {
+      "accepted": [
+        "3cf770b82b1ac62a9b0bb72fb8860a673138dd2173b164222dc88001349a6e69"
+      ],
+      "new": "5e1fd6887ea532ac01ae457aecac4651440525037e8d9ef971e217e1155ee86d"
+    },
+    "test_interactive_paints.py": {
+      "accepted": [
+        null
+      ],
+      "new": "7dae7a405cc4488158d383dfe9bd5c78d22c4a3c929f3dbbe3dc63015be4f847"
+    },
+    "test_lossless_source.py": {
+      "accepted": [
+        null
+      ],
+      "new": "822efa0788e00f4bbcc220cd9b45a98716e226e56f77085aa87c7494e24a12ec"
+    },
+    "wired_desktop.py": {
+      "accepted": [
+        "9f2d91f2e5944b167ce71104ef17ace4e097c342bac07832fd0e2a597eb025b3"
+      ],
+      "new": "e5e9c06b6239c935ee9c63c16a873358b987cb9a2b71866d70e23796fb811dfb"
+    }
+  }
+}

@@ -1,0 +1,99 @@
+--- a/screen/include/WiredPictures.h
++++ b/screen/include/WiredPictures.h
+@@ -38,6 +38,8 @@
+   void cancel(){kind_=0;expected_=received_=0;}
+   bool busy()const{return kind_!=0;}
+   bool receivingJpeg()const{return kind_==9;}
++  // A graphics fragment can hold at most 37 data bytes after its opcode and offset.
++  bool canStageWithoutPaint()const{return kind_==9 || (kind_==6 && expected_-received_>37);}
+   bool record(TFT_eSPI& lcd,const uint8_t* b,size_t n,unsigned visible,uint32_t& pixelCount,uint32_t& paintCount,bool (*guard)()){
+     using namespace wireddesktop;
+     bool ok=false;
+--- a/screen/src/main.cpp
++++ b/screen/src/main.cpp
+@@ -64,7 +64,7 @@
+ uint32_t wiredLastInteraction=0;
+ bool wiredSafetyPause();
+ void reportWiredGuard(const char* reason);
+-const char* wiredGuardReason();
++const char* wiredGuardReason(bool nonblocking=false);
+ bool wiredPriorityActive();
+ wirednotice::Notice wiredNoticeNow();
+ void paintWiredPriorityCard(const wirednotice::Notice&);
+@@ -240,9 +240,11 @@
+     current = value; xSemaphoreGive(viewMutex);
+   }
+ }
+-FlightView snapshot() {
++FlightView snapshot(TickType_t wait=pdMS_TO_TICKS(100),bool* available=nullptr) {
+   FlightView result;
+-  if (xSemaphoreTake(viewMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
++  bool locked=xSemaphoreTake(viewMutex,wait)==pdTRUE;
++  if(available)*available=locked;
++  if(locked) {
+     result = current;
+     if(compactTelemetryEnabled){uint32_t now=millis();
+       const char* fault=displayLinkFault(WiFi.status()==WL_CONNECTED,authBlocked,piLink.error,piLink.tlsError,uint32_t(now-displayTelemetry.received));
+@@ -1166,19 +1168,28 @@
+   Serial.printf("{\"request_id\":%u,\"ack\":%u,\"busy\":%s,\"up_hex\":\"%s\",\"accepted\":%u}\n",
+                 id,ack,busy?"true":"false",out,accepted);
+ }
+-static void stepDirectBurst(){
++static void stepDirectRecord(bool permit){
+   uint16_t ack=0;bool busy=false;uint8_t up[57]{};size_t len=0;
+-  bool permit=directPermitted()&&wiredViewer.pairedUsb();
+   uint16_t wanted=directBurst.sequence;
+   unsigned pos=directBurst.next;
+   bool rendered=wiredViewer.usbExchange(lcd,wanted,directBurst.records[pos],directBurst.sizes[pos],
+-                                        permit,ack,busy,up,len,true);
++                                        permit&&wiredViewer.pairedUsb(),ack,busy,up,len,true);
+   bool accepted=rendered&&!busy&&ack==wanted;
+   if(accepted)directBurst.advance();
+   if(!accepted || !directBurst.active()){
+     directReceipt(directBurst.request,ack,busy,up,len,directBurst.next);
+     directBurst.clear();
+   }
++}
++static void stepDirectBurst(){
++  uint32_t started=micros();
++  stepDirectRecord(directPermitted());
++  // Leave the final receipt and any tile that could paint for a fresh UI pass.
++  if(directBurst.count-directBurst.next<2 || !wiredViewer.pictures.canStageWithoutPaint() || powerMenu || sleepPending ||
++     !touchReady || digitalRead(36)==LOW || digitalRead(0)==LOW || xiaoLights.pending() ||
++     uint32_t(micros()-started)>=1000)return;
++  // A busy guard mutex yields to the main UI immediately. A second record gets its own fresh check.
++  if(!strcmp(wiredGuardReason(true),"clear") && uint32_t(micros()-started)<1000)stepDirectRecord(true);
+ }
+ static void wiredUsbExchange(JsonDocument& doc){
+   uint32_t id=doc["request_id"].as<uint32_t>();
+@@ -1209,7 +1220,7 @@
+     Serial.flush(false);Serial.updateBaudRate(115200);directBaud=115200;
+     length=0;overflow=false;directBurst.clear();
+   }
+-  // Each slice gets one normal UI/safety/touch pass, including between graphics fragments.
++  // Each slice returns to the normal UI after at most two staged graphics fragments.
+   if(directBurst.active()){stepDirectBurst();return;}
+   // One complete valid burst fits within this limit. Noise, unsolicited log
+   // traffic or a missing newline must yield to the normal UI and touch loop.
+@@ -1261,7 +1272,7 @@
+           if(esp_efuse_mac_get_default(mac)==ESP_OK)
+             snprintf(hex,sizeof hex,"%02x%02x%02x%02x%02x%02x",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+           report["request_id"]=doc["request_id"].as<uint32_t>();report["firmware"]=VERSION;
+-          report["direct_burst"]=1;report["direct_baud"]=directBaud;
++          report["direct_burst"]=1;report["direct_baud"]=directBaud;report["staging_slice_version"]=2;
+           report["local_setup"]=localProfileReady();report["configured_controller"]="CORVON743V2";report["display"]="Hosyond-E32R35T";report["screen_mac"]=hex;
+           report["paired"]=wiredViewer.enrolled();report["helper"]=wiredViewer.present();
+           report["handshake"]=wiredViewer.established();report["desktop_live"]=wiredViewer.live();
+@@ -1791,8 +1802,10 @@
+   }
+   return notice;
+ }
+-const char* wiredGuardReason(){
+-  FlightView v=snapshot();
++const char* wiredGuardReason(bool nonblocking){
++  bool available=false;
++  FlightView v=snapshot(nonblocking?0:pdMS_TO_TICKS(100),&available);
++  if(nonblocking&&!available)return "telemetry busy";
+   if(v.armedKnown&&v.armed)return "armed";
+   if(v.sourceMismatch)return "controller source mismatch";
+   if(v.groundKnown&&!v.onGround&&uint32_t(millis()-v.groundReceived)<1500)return "airborne";

@@ -1,0 +1,27 @@
+{
+  "app0_bytes": 1506848,
+  "app0_offset": "0x10000",
+  "app0_sha256": "a99ab69d641a9c0eae099b907c785aa0a12337c7e2683bb6bc7aaf2edc2e55a9",
+  "app0_size": "0x1e0000",
+  "base_archive_sha256": "4b23f19870926a56cce5faaac97b9c141f1406c70268c9009ea48dadf2dba1eb",
+  "base_release": "wired-field-console-r3.4-rc1",
+  "board": "Hosyond E32R35T / ESP32-WROOM-32E-N4",
+  "build_environment": "flight_team",
+  "changed_sources": {
+    "include/WiredPictures.h": "c9c5689fd7297db78a7c338e6453b0ff6ad2c4dd977299ea24a1aadad91158ce",
+    "src/main.cpp": "61c6630c739af8dd1793eb20c1fd3686d2b1ab94550b3a4fc6c0d1d69d3eb211"
+  },
+  "display": "ST7796, resistive touch",
+  "firmware_version": "flight-team-display-1.3.34-wired-paired-r3.4",
+  "flash_bytes": 4194304,
+  "framework": "Arduino",
+  "partition_layout": "min_spiffs",
+  "partition_table_offset": "0x8000",
+  "platform": "espressif32@6.12.0",
+  "previous_app0_bytes": 1506464,
+  "previous_app0_sha256": "ec28c584327837e2669b20d8ad0a8d4ed51ba517586052ced27dd0b31c592ad8",
+  "reference_partition_sha256": "0a8b5720e7b77ff11f1462458c3a509dee79224e5279898f26d6a2e3ae0517b7",
+  "release": "wired-field-console-r3.4-rc3",
+  "source_patch_sha256": "2562b3227f31c757317d87128479e41dc46ffb11e1acf6249ca4e489c5c0035f",
+  "staging_slice_version": 2
+}
