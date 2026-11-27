@@ -1,0 +1,11 @@
+[Unit]
+Description=Check freshly prepared controller proposals
+
+[Path]
+PathChanged=%h/.local/state/corvon-maintenance/proposals
+MakeDirectory=yes
+DirectoryMode=0700
+Unit=orangepi-ai-improvement.service
+
+[Install]
+WantedBy=default.target
