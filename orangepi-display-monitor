@@ -1,0 +1,80 @@
+#!/bin/sh
+set -eu
+
+last_state=''
+policy=${ORANGEPI_DISPLAY_POLICY:-prefer-dp}
+
+output_active() {
+    printf '%s\n' "$1" | awk -v output="$2" '
+        $1 == output && $2 == "connected" {
+            for (i = 3; i <= NF; i++)
+                if ($i ~ /^[0-9]+x[0-9]+[+-][0-9]+[+-][0-9]+$/) active = 1
+        }
+        END { exit !active }'
+}
+
+while :; do
+    outputs=$(xrandr --query 2>/dev/null || true)
+    if [ -z "$outputs" ]; then
+        last_state=''
+        sleep 2
+        continue
+    fi
+
+    dp_state=$(printf '%s\n' "$outputs" | awk '/^DP-1 / { print $2; exit }')
+    hdmi_state=$(printf '%s\n' "$outputs" | awk '/^HDMI-1 / { print $2; exit }')
+    dp_mode=$(printf '%s\n' "$outputs" | awk '
+        /^DP-1 connected/ { in_dp = 1; next }
+        /^[^[:space:]]/ { in_dp = 0 }
+        in_dp && NF >= 2 {
+            for (i = 2; i <= NF; i++) {
+                rate = $i; gsub(/[*+]/, "", rate)
+                if (rate !~ /^[0-9]+([.][0-9]+)?$/ || rate + 0 <= 0) continue
+                has_mode = 1
+                if ($1 == "1920x1080" && rate + 0 >= 59.9 && rate + 0 <= 60.1) preferred = 1
+            }
+        }
+        END { print preferred ? "1080p60" : has_mode ? "auto" : "none" }')
+    state="${dp_state:-missing}:${hdmi_state:-missing}:$dp_mode"
+
+    if [ "$state" != "$last_state" ] ||
+       { [ "$dp_state" = connected ] && [ "$dp_mode" != none ] && ! output_active "$outputs" DP-1; }; then
+        if [ "$dp_state" = connected ] && [ "$dp_mode" != none ]; then
+            # Some panels need an off/on modeset after Alt Mode negotiation.
+            # Keep a working output while the new link is being tested.
+            if ! output_active "$outputs" DP-1 || output_active "$outputs" HDMI-1; then
+                xrandr --output DP-1 --off || true
+                sleep 1
+            fi
+            if [ "$dp_mode" = 1080p60 ] && xrandr --output DP-1 --mode 1920x1080 --rate 60 --primary; then
+                :
+            else
+                xrandr --output DP-1 --auto --primary || true
+            fi
+            result=$(xrandr --query 2>/dev/null || true)
+            if output_active "$result" DP-1; then
+                if [ "$hdmi_state" = connected ]; then
+                    if [ "$policy" = dual ]; then
+                        xrandr --output HDMI-1 --auto --right-of DP-1 || { sleep 2; continue; }
+                    else
+                        xrandr --output HDMI-1 --off || { sleep 2; continue; }
+                    fi
+                fi
+                logger -t orangepi-display "USB-C DisplayPort active; DP-1 is primary (policy=$policy)"
+            else
+                if [ "$hdmi_state" = connected ]; then
+                    xrandr --output HDMI-1 --auto --primary || true
+                fi
+                # Retry even if the connector state did not change.
+                sleep 2
+                continue
+            fi
+        elif [ "$hdmi_state" = connected ]; then
+            xrandr --output HDMI-1 --auto --primary || { sleep 2; continue; }
+            logger -t orangepi-display "HDMI-1 is primary while USB-C DisplayPort has no usable mode"
+        fi
+        last_state=$state
+    fi
+
+    sleep 2
+done
