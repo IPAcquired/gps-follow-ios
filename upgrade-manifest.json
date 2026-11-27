@@ -1,0 +1,57 @@
+{
+  "base_release": "R3.4-rc3",
+  "installer": "7542cb69b0a3660f95701d8b3fb509a2b77a0da425f901a7ae65fd7a6cbacbf8",
+  "original_files": [
+    "README.txt",
+    "activate.py",
+    "auto_service.py",
+    "bridge_usb.py",
+    "desktop_source.py",
+    "direct_usb.py",
+    "discovery.service",
+    "display_damage.py",
+    "display_model.py",
+    "launch",
+    "pair_channel.py",
+    "paired_system.py",
+    "paired_wire.py",
+    "scene_codec.py",
+    "screen_sockets.py",
+    "test_bridge_usb.py",
+    "test_desktop.py",
+    "test_direct_scene_plans.py",
+    "test_direct_usb.py",
+    "test_display_damage.py",
+    "test_display_pointer.py",
+    "test_display_tty.py",
+    "test_hub_rate.py",
+    "test_idle_poll.py",
+    "test_interactive_paints.py",
+    "test_lossless_source.py",
+    "test_pair_service.py",
+    "test_scene_codec.py",
+    "test_screen_sockets.py",
+    "wired_desktop.py"
+  ],
+  "release": "R3.4-rc4",
+  "updates": {
+    "scene_codec.py": {
+      "accepted": [
+        "5e1fd6887ea532ac01ae457aecac4651440525037e8d9ef971e217e1155ee86d"
+      ],
+      "new": "874f03336180442773ef9370ac822583251f6e6b94384418ce4d7a3b9b2494bf"
+    },
+    "test_hud_tiles.py": {
+      "accepted": [
+        null
+      ],
+      "new": "5d79e63a59c83a6ea4428a8f2148745cc876ff7f14d8cbc2027272469909cd77"
+    },
+    "wired_desktop.py": {
+      "accepted": [
+        "e5e9c06b6239c935ee9c63c16a873358b987cb9a2b71866d70e23796fb811dfb"
+      ],
+      "new": "62c4fc34548d0aa41d2441fd81115d3f7ce13ad4f4ccf6aac80bf2c16abe6539"
+    }
+  }
+}
