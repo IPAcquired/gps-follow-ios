@@ -1,0 +1,30 @@
+{
+  "release": "wired-field-console-r3.4-rc1",
+  "screen": {
+    "version": "flight-team-display-1.3.34-wired-paired-r3.4",
+    "board": "E32R35T / ESP32-WROOM-32E-N4",
+    "application_only": true,
+    "verified_app0_offset": "0x10000",
+    "flash_partition_layout": "min_spiffs, 4 MiB",
+    "platformio_environment": "flight_team"
+  },
+  "xiao": {
+    "board": "Seeed XIAO RP2350",
+    "fqbn": "rp2040:rp2040:seeed_xiao_rp2350",
+    "arduino_pico_version": "6.4.0"
+  },
+  "binaries": {
+    "firmware/E32R35T-r3.4-app.bin": {
+      "bytes": 1506464,
+      "sha256": "ec28c584327837e2669b20d8ad0a8d4ed51ba517586052ced27dd0b31c592ad8"
+    },
+    "firmware/XIAO-RP2350-r3.3.uf2": {
+      "bytes": 156672,
+      "sha256": "ce5e12717b48ccb2aa04b8caf5a1a5ebecf21dbc0f69143e2b85c7d66d7a76ee"
+    }
+  },
+  "upgrades": {
+    "existing_owner": "upgrade_existing.py",
+    "instructions": "UPGRADE.md"
+  }
+}

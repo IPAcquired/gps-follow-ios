@@ -1,0 +1,10 @@
+#!/usr/bin/python3 -B
+"""Request the paired display's mode or print its status via the single USB-owning service."""
+import argparse
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from auto_service import command
+p=argparse.ArgumentParser(description=__doc__)
+p.add_argument("mode",choices=("owner","pattern","pause","status"),default="owner",nargs="?")
+command(p.parse_args().mode)

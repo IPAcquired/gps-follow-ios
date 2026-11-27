@@ -1,0 +1,263 @@
+--- a/browser_desktop.py
++++ b/browser_desktop.py
+@@ -34 +34 @@
+-                if not self.guard():raise PermissionError('Fresh disarmed or confirmed absent H743 status required')
++                if not self.guard():raise PermissionError('Fresh matching disarmed controller status required')
+--- a/companion-app.js
++++ b/companion-app.js
+@@ -105 +105 @@
+-  if($('data-age'))$('data-age').textContent='No H743 data';
++  if($('data-age'))$('data-age').textContent='No CORVON743V2 data';
+@@ -393 +393 @@
+-  if(!confirm('Approve this exact tested companion-only proposal? H743 settings will not change. Disconnect flight hardware first.'))return;
++  if(!confirm('Approve this exact tested companion-only proposal? CORVON743V2 settings will not change. Disconnect flight hardware first.'))return;
+@@ -481 +481 @@
+-const deviceLabels={camera:['CAM','Camera','Visual object context'],rplidar:['RP','RPLIDAR','Independent ranging'],matrix_lidar:['8×8','Matrix LiDAR','Forward depth grid'],flight_controller:['H7','H743 controller','Flight authority']};
++const deviceLabels={camera:['CAM','Camera','Visual object context'],rplidar:['RP','RPLIDAR','Independent ranging'],matrix_lidar:['8×8','Matrix LiDAR','Forward depth grid'],flight_controller:['FC','CORVON743V2','Flight authority']};
+@@ -512,2 +512,2 @@
+-  $('flight-link-badge').textContent=connected?`H743 live · ${ageText} old`:Number.isFinite(age)?`H743 stale · ${ageText} old`:'Waiting for H743';
+-  if($('data-age'))$('data-age').textContent=connected?`${ageText} old`:Number.isFinite(age)?`Stale · ${ageText}`:'No H743 data';
++  $('flight-link-badge').textContent=connected?`CORVON743V2 live · ${ageText} old`:Number.isFinite(age)?`CORVON743V2 stale · ${ageText} old`:'Waiting for CORVON743V2';
++  if($('data-age'))$('data-age').textContent=connected?`${ageText} old`:Number.isFinite(age)?`Stale · ${ageText}`:'No CORVON743V2 data';
+@@ -545 +545 @@
+-  $('front-source').textContent=connected?'Heartbeat live; front range unverified':'Awaiting H743';
++  $('front-source').textContent=connected?'Heartbeat live; front range unverified':'Awaiting CORVON743V2';
+--- a/display_telemetry.py
++++ b/display_telemetry.py
+@@ -1,0 +2 @@
++from controller_profile import controller_profile
+@@ -194,0 +196,2 @@
++                   and controller_profile(flight, now)['source_state'] == 'matching'
++                   and type(record.get('source_system_id')) is int and type(record.get('source_component_id')) is int
+@@ -281 +284,2 @@
+-    h743 = {}
++    h743 = {}  # Existing schema-1 wire key.
++    profile = controller_profile(flight, now)
+@@ -283 +287 @@
+-    heartbeat_fresh = (flight.get('connected') is True and flight.get('fresh') is True
++    heartbeat_fresh = (profile['source_state'] == 'matching' and flight.get('connected') is True and flight.get('fresh') is True
+@@ -323,0 +328 @@
++                           and type(battery.get('source_system_id')) is int and type(battery.get('source_component_id')) is int
+@@ -346,0 +352 @@
++                       and type(ground.get('source_system_id')) is int and type(ground.get('source_component_id')) is int
+@@ -385 +391 @@
+-    messages = recent_messages(flight, now)
++    messages = recent_messages(flight, now) if heartbeat_fresh else []
+@@ -388,2 +394,8 @@
+-        faults.append({'component': 'h743', 'severity': 'warning', 'code': 'H743_TELEMETRY_UNAVAILABLE',
+-                       'text': 'Pi API is responding; H743 heartbeat is unavailable or stale.', 'age_ms': heartbeat_age})
++        message = ('Telemetry source differs from the configured MAVLink source.' if profile['source_state'] == 'mismatch'
++                   else 'Heartbeat source is unverified.' if profile['presence'] == 'heartbeat'
++                   else 'No recent controller heartbeat. Physical presence is unknown.')
++        faults.append({'component': 'flight_controller', 'severity': 'warning', 'code': 'CONTROLLER_TELEMETRY_UNVERIFIED',
++                       'text': message, 'age_ms': heartbeat_age})
++    health = bounded_health(health)
++    if not heartbeat_fresh and 'flight_controller' in health:
++        health['flight_controller'].update(status='no_data', fresh=False, reason='no_matching_fresh_heartbeat')
+@@ -400 +412 @@
+-            'h743': h743, 'pi': bounded_pi(pi), 'sensor_health': bounded_health(health), 'rangefinders': ranges, 'rc_channels': rc,
++            'controller_profile': profile, 'h743': h743, 'pi': bounded_pi(pi), 'sensor_health': health, 'rangefinders': ranges, 'rc_channels': rc,
+--- a/environment_awareness.py
++++ b/environment_awareness.py
+@@ -75,0 +76 @@
++    from controller_profile import controller_profile
+@@ -77,0 +79 @@
++        and controller_profile(flight, now)['source_state'] == 'matching'
+@@ -172 +174 @@
+-        pieces.append('H743-reported range samples: ' + ', '.join(
++        pieces.append('CORVON743V2-reported range samples: ' + ', '.join(
+--- a/field.html
++++ b/field.html
+@@ -10 +10 @@
+-<label for="saved">Saved secure networks</label><select id="saved"></select><button id="connect-now">Connect to selected network</button><button id="refresh">Refresh connection and saved networks</button><p id="connect-result" role="status"></p><p>Changing Wi-Fi waits for safe flight status. Reading this dashboard does not require the H743 to be connected. No open network is automatically added.</p></section>
++<label for="saved">Saved secure networks</label><select id="saved"></select><button id="connect-now">Connect to selected network</button><button id="refresh">Refresh connection and saved networks</button><p id="connect-result" role="status"></p><p>Changing Wi-Fi waits for safe flight status. Reading this dashboard does not require the CORVON743V2 to be connected. No open network is automatically added.</p></section>
+@@ -23,2 +23,2 @@
+-<details><summary>2 · Connect in the field</summary><ol><li>Power the Pi and ESP32. Allow about a minute for startup. The H743 may remain disconnected for network setup.</li><li>For a saved hotspot, enable Maximize Compatibility and Allow Others to Join on the iPhone. Leave Settings open while the Pi joins.</li><li>If no saved network is available, join Drone-Display, open this app and add a secure network under Connect.</li><li>Review the current network. Confirm Pi data is fresh and the ESP32 reports an authenticated Pi connection.</li><li>For phone GPS, open your separate private GPS link, allow Location, tap Start sharing and keep Safari visible. Screen-awake mode cannot enable background GPS.</li></ol></details>
+-<details><summary>3 · Updates and safe shutdown</summary><p>Having internet does not automatically authorize every update. The existing automatic updater is restricted to its configured home network and eligible Debian security updates. Board drivers, AI runtime changes and H743 firmware need a compatible reviewed release. The hotspot page does not bypass those rules.</p><p>Use the ESP32’s safe storage/unmount and power options before removing its SD card. Do not remove the Pi’s SD card while it is running. Verify flight readiness separately on the controller; this page is advisory.</p></details>
++<details><summary>2 · Connect in the field</summary><ol><li>Power the Pi and ESP32. Allow about a minute for startup. The CORVON743V2 may remain disconnected for network setup.</li><li>For a saved hotspot, enable Maximize Compatibility and Allow Others to Join on the iPhone. Leave Settings open while the Pi joins.</li><li>If no saved network is available, join Drone-Display, open this app and add a secure network under Connect.</li><li>Review the current network. Confirm Pi data is fresh and the ESP32 reports an authenticated Pi connection.</li><li>For phone GPS, open your separate private GPS link, allow Location, tap Start sharing and keep Safari visible. Screen-awake mode cannot enable background GPS.</li></ol></details>
++<details><summary>3 · Updates and safe shutdown</summary><p>Having internet does not automatically authorize every update. The existing automatic updater is restricted to its configured home network and eligible Debian security updates. Board drivers, AI runtime changes and CORVON743V2 firmware need a compatible reviewed release. The hotspot page does not bypass those rules.</p><p>Use the ESP32’s safe storage/unmount and power options before removing its SD card. Do not remove the Pi’s SD card while it is running. Verify flight readiness separately on the controller; this page is advisory.</p></details>
+--- a/field.js
++++ b/field.js
+@@ -46 +46 @@
+- if(!details){details=document.createElement('details');details.open=['Orange Pi','H743'].includes(title);const heading=document.createElement('summary');heading.textContent=title;details.append(heading,document.createElement('dl'));panelNodes.set(title,details);}
++ if(!details){details=document.createElement('details');details.open=['Orange Pi','CORVON743V2'].includes(title);const heading=document.createElement('summary');heading.textContent=title;details.append(heading,document.createElement('dl'));panelNodes.set(title,details);}
+@@ -65 +65 @@
+- card('connection-cards','h743-link','H743',flight?'Connected':'No fresh heartbeat','Independent of the Pi connection',flight?'good':'warning');
++ card('connection-cards','h743-link','CORVON743V2',flight?'Matching heartbeat':snapshot?.controller_profile?.presence==='heartbeat'?'Unverified source':'No recent heartbeat','Independent of the Pi connection',flight?'good':'warning');
+@@ -68,2 +68,2 @@
+- card('summary-cards','speed','Ground speed',reading(h.groundspeed_mps,'m/s'),'H743 telemetry');
+- card('summary-cards','battery','Flight battery',reading(h.battery_voltage_v,'V'),'H743 telemetry');
++ card('summary-cards','speed','Ground speed',reading(h.groundspeed_mps,'m/s'),'CORVON743V2 telemetry');
++ card('summary-cards','battery','Flight battery',reading(h.battery_voltage_v,'V'),'CORVON743V2 telemetry');
+@@ -71 +71 @@
+- card('summary-cards','altitude','Relative altitude',reading(h.relative_altitude_m,'m'),'H743 telemetry');
++ card('summary-cards','altitude','Relative altitude',reading(h.relative_altitude_m,'m'),'CORVON743V2 telemetry');
+@@ -82 +82 @@
+- const panels=[section('Orange Pi',metricRows(snapshot.pi)),section('H743',metricRows(snapshot.h743))];
++ const panels=[section('Orange Pi',metricRows(snapshot.pi)),section('CORVON743V2',metricRows(snapshot.h743))];
+--- a/orangepi-ai-improvement
++++ b/orangepi-ai-improvement
+@@ -56 +56 @@
+-        "required_all": ("h743",),
++        "required_all": ("corvon743v2",),
+@@ -175 +175 @@
+-        "ignore the h743", "orange pi is flight-authoritative", "may write ardupilot",
++        "ignore the corvon", "ignore the h743", "orange pi is flight-authoritative", "may write ardupilot",
+--- a/orangepi-ai-team
++++ b/orangepi-ai-team
+@@ -301 +301 @@
+-                "flight_critical_controller": "MicoAir H743 V2",
++                "flight_critical_controller": "CORVON743V2",
+@@ -364 +364 @@
+-            "MicoAir H743 V2 retains flight authority. After landing: preserve the BIN log, "
++            "CORVON743V2 retains flight authority. After landing: preserve the BIN log, "
+--- a/orangepi-ai-team-gui
++++ b/orangepi-ai-team-gui
+@@ -30 +30 @@
+-                "Advisory and post-flight use only. Language models never control the H743 or "
++                "Advisory and post-flight use only. Language models never control the CORVON743V2 or "
+--- a/orangepi-bin-analyzer
++++ b/orangepi-bin-analyzer
+@@ -149 +149 @@
+-    """Fail closed on a present-but-invalid flight status, but not an absent H743."""
++    """Decide whether archived log processing must wait; a missing monitor has no controller presence evidence."""
+@@ -163,0 +164,3 @@
++        from controller_profile import controller_profile
++        if status["connected"] and controller_profile(status, now)["source_state"] != "matching":
++            return True, "controller_source_unverified"
+@@ -165 +168 @@
+-            return True, "h743_armed"
++            return True, "controller_armed"
+@@ -172 +175 @@
+-        return False, "h743_disarmed_or_disconnected"
++        return False, "controller_disarmed" if status["connected"] else "no_connected_monitor_workload"
+--- a/orangepi-companion
++++ b/orangepi-companion
+@@ -33,0 +34 @@
++from controller_profile import MODEL, SENSOR_LINKS, board_reference, controller_profile, source_pair
+@@ -264 +265 @@
+-    if state.get('connected') is False and state.get('last_heartbeat_unix') is None:return True
++    if type(state.get('schema')) is not int or state['schema'] != 1 or controller_profile(state, now)['source_state'] != 'matching':return False
+@@ -415 +416 @@
+-        "h743", "motor", "actuator", "mavlink", "vehicle", "drone",
++        "corvon", "h743", "motor", "actuator", "mavlink", "vehicle", "drone",
+@@ -421 +422 @@
+-            "The MicoAir H743 remains flight-authoritative; this Orange Pi is observation-only "
++            "The CORVON743V2 remains flight-authoritative; this Orange Pi is observation-only "
+@@ -426 +427 @@
+-        and any(term in lowered for term in ("h743", "flight", "ardupilot", "drone"))
++        and any(term in lowered for term in ("corvon", "h743", "flight", "ardupilot", "drone"))
+@@ -429 +430 @@
+-            "The MicoAir H743 retains all flight-critical authority. This Orange Pi may analyze "
++            "The CORVON743V2 retains all flight-critical authority. This Orange Pi may analyze "
+@@ -447 +448 @@
+-                "This button reads status only. H743 parameter writes are disabled.")
++                "This button reads status only. CORVON743V2 parameter writes are disabled.")
+@@ -451 +452 @@
+-        names = (("flight_controller", "H743"), ("camera", "camera"),
++        names = (("flight_controller", "CORVON743V2"), ("camera", "camera"),
+@@ -472 +473 @@
+-            "flight_controller": ("flight controller", "h743"),
++            "flight_controller": ("flight controller", "corvon", "h743"),
+@@ -478 +479 @@
+-    if any(term in lowered for term in ("armed", "flight mode", "vehicle state", "h743 status", "flight status")):
++    if any(term in lowered for term in ("armed", "flight mode", "vehicle state", "corvon status", "h743 status", "flight status")):
+@@ -480 +481 @@
+-            return "No fresh H743 heartbeat is available, so the current armed state and flight mode are unknown."
++            return "No fresh CORVON743V2 heartbeat is available, so the current armed state and flight mode are unknown."
+@@ -484 +485 @@
+-            f"Fresh read-only H743 telemetry reports mode {flight.get('mode', 'unknown')} and "
++            f"Fresh read-only CORVON743V2 telemetry reports mode {flight.get('mode', 'unknown')} and "
+@@ -490 +491 @@
+-            return "No fresh H743 battery telemetry is available, so I will not invent a battery value."
++            return "No fresh CORVON743V2 battery telemetry is available, so I will not invent a battery value."
+@@ -499,2 +500,2 @@
+-            return "The H743 heartbeat is available, but no usable fresh battery voltage or remaining percentage is available. I will not invent a battery value."
+-        return "Fresh read-only H743 telemetry reports " + " and ".join(pieces) + ". This is an observation, not a battery-health or flight-clearance decision."
++            return "The CORVON743V2 heartbeat is available, but no usable fresh battery voltage or remaining percentage is available. I will not invent a battery value."
++        return "Fresh read-only CORVON743V2 telemetry reports " + " and ".join(pieces) + ". This is an observation, not a battery-health or flight-clearance decision."
+@@ -554,0 +556,3 @@
++    words = prompt.lower()
++    if any(term in words for term in ('corvon', 'h743', 'hwdef', 'board definition')):
++        return board_reference()
+@@ -556,4 +560,4 @@
+-    result = {key:metadata.get(key) for key in ('base_commit','last_install_evidence_date','source_files_verified','live_h743_version_match_verified','observed_h743_identity','live_base_commit_prefix_match','live_firmware_bytes_attested','runtime_autopilot_installed')}
+-    if not metadata: return {'status':'not_installed'}
+-    words = prompt.lower()
+-    choices = [('battery','ArduCopter/events.cpp'),('rangefinder','libraries/AP_RangeFinder/AP_RangeFinder_MAVLink.cpp'),('proximity','libraries/AP_Proximity/AP_Proximity_Utils.cpp'),('h743','libraries/AP_HAL_ChibiOS/hwdef/MicoAir743v2/hwdef.dat'),('failsafe','ArduCopter/events.cpp')]
++    result = {key:metadata.get(key) for key in ('base_commit','last_install_evidence_date','source_files_verified','runtime_autopilot_installed')}
++    result.update(configured_board=MODEL, evidence_scope='historical_source_reference', live_firmware_bytes_attested=False)
++    if not metadata: return {'status':'not_installed', 'configured_board':MODEL}
++    choices = [('battery','ArduCopter/events.cpp'),('rangefinder','libraries/AP_RangeFinder/AP_RangeFinder_MAVLink.cpp'),('proximity','libraries/AP_Proximity/AP_Proximity_Utils.cpp'),('failsafe','ArduCopter/events.cpp')]
+@@ -585 +589,2 @@
+-    if not valid_monitor or not valid_updated or age_ms > 7000:
++    identity = controller_profile(value if valid_monitor else {}, now)
++    if not valid_monitor or not valid_updated or age_ms > 7000 or identity['source_state'] != 'matching':
+@@ -587,2 +592,5 @@
+-            "schema": 1, "connected": False, "reason": "no_fresh_heartbeat",
+-            "transport": "none", "connection_id": None, "flight_session_id": None,
++            "schema": 1, "connected": False, "reason": "unverified_controller_source" if identity["presence"] == "heartbeat" else "no_fresh_heartbeat",
++            "controller_profile": identity, "heartbeat_observed": identity["presence"] == "heartbeat",
++            "last_heartbeat_unix": value.get("last_heartbeat_unix") if identity["presence"] == "heartbeat" else None,
++            "h743_source": value.get("h743_source") if valid_monitor else None, "expected_source": value.get("expected_source") if valid_monitor else None,
++            "transport": value.get("transport") if identity["presence"] == "heartbeat" else "none", "connection_id": None, "flight_session_id": None,
+@@ -595,0 +604 @@
++    result["controller_profile"] = identity
+@@ -611 +620,4 @@
+-    valid_fix = (gps_record.get('message_type') == 'GPS_RAW_INT'
++    def same_source(record):
++        pair = {"system_id":record.get("source_system_id"), "component_id":record.get("source_component_id")}
++        return source_pair(pair) == source_pair(value.get("expected_source"))
++    valid_fix = (same_source(gps_record) and gps_record.get('message_type') == 'GPS_RAW_INT'
+@@ -618 +630 @@
+-        if not isinstance(record, dict): return {}
++        if not isinstance(record, dict) or not same_source(record): return {}
+@@ -698,4 +710,3 @@
+-        'rplidar': device_exists('/dev/rplidar', '/dev/rplidar-c1-usb'),
+-        'matrix_lidar': device_exists('/dev/matrix-lidar', '/dev/dfrobot-matrix-lidar',
+-                                      '/dev/dfrobot-matrix-uart7'),
+-        'flight_controller': device_exists('/dev/h743', '/dev/rfcomm0'),
++        'rplidar': device_exists('/dev/ttyS2', '/dev/rplidar'),
++        'matrix_lidar': device_exists('/dev/ttyS7', '/dev/dfrobot-matrix-uart7'),
++        'flight_controller': device_exists('/dev/ttyS0', '/dev/h743'),
+@@ -716 +727 @@
+-            'reason': ('fresh_camera_capture' if key == 'camera' else 'fresh_h743_heartbeat') if fresh
++            'reason': ('fresh_camera_capture' if key == 'camera' else 'fresh_matching_controller_heartbeat') if fresh
+@@ -919 +930 @@
+-        add("info", "H743 telemetry is waiting", "Connect the MicoAir H743 to see live, fresh-flight data.", "No fresh MAVLink heartbeat is available.")
++        add("info", "CORVON743V2 telemetry is waiting", "Check the controller power and the UART0 to UART4 link.", "No fresh MAVLink heartbeat is available.")
+@@ -1055,0 +1067 @@
++        "configured_sensor_links": SENSOR_LINKS,
+@@ -1612 +1624 @@
+-            self.send_json(HTTPStatus.OK, {'state':'approved','candidate_id':candidate_id,'approval_sha256':approval,'detail':'Exact reviewed advisory policy approved. Immutable decision and parent version retained; H743 settings unchanged.'})
++            self.send_json(HTTPStatus.OK, {'state':'approved','candidate_id':candidate_id,'approval_sha256':approval,'detail':'Exact reviewed advisory policy approved. Immutable decision and parent version retained; controller settings preserved.'})
+@@ -1657,2 +1669 @@
+-            flight=live_flight_status()
+-            if action not in {'probe','release_all'} and flight.get('connected') is True and flight.get('armed') is not False:
++            if action not in {'probe','release_all'} and not browser_owner_safe():
+@@ -1871 +1882 @@
+-                    {"role": "system", "content": "You are this drone companion's friendly onboard voice. Be brief. Use first person only for verified observations. Never invent a flight. H743 controls flight; you never command it. Jev is a separate advisor. Environment evidence is a request-time snapshot, not a live scene or proof of safe clearance. Object classes are hypotheses, not ground truth or identified people. Evidence: " + json.dumps(evidence, separators=(",", ":")) + ". " + addition},
++                    {"role": "system", "content": "You are this drone companion's friendly onboard voice. Be brief. Use first person only for verified observations. Never invent a flight. CORVON743V2 controls flight; you never command it. Jev is a separate advisor. Environment evidence is a request-time snapshot, not a live scene or proof of safe clearance. Object classes are hypotheses, not ground truth or identified people. Evidence: " + json.dumps(evidence, separators=(",", ":")) + ". " + addition},
+@@ -1899 +1910 @@
+-                    "The MicoAir H743 remains authoritative; the Orange Pi does not write ArduPilot "
++                    "The CORVON743V2 remains authoritative; the Orange Pi does not write ArduPilot "
+--- a/orangepi-jev-advisor
++++ b/orangepi-jev-advisor
+@@ -732 +732 @@
+-        "note": "H743 remains authoritative; this output is not an actuator command.",
++        "note": "CORVON743V2 remains authoritative; this output is not an actuator command.",
+--- a/orangepi-offline-code-review
++++ b/orangepi-offline-code-review
+@@ -33 +33 @@
+-    report={'schema':1,'checked_utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'offline':True,'authority':'report_only','semantic_security_certification':False,'automatic_code_editing':False,'files':files,'issues':sum(item['status']!='syntax_ok' for item in files),'next_step':'Review evidence and proposed changes with the owner; new model weights, firmware and H743 changes need a separate reviewed build.'}
++    report={'schema':1,'checked_utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),'offline':True,'authority':'report_only','semantic_security_certification':False,'automatic_code_editing':False,'files':files,'issues':sum(item['status']!='syntax_ok' for item in files),'next_step':'Review evidence and proposed changes with the owner; new model weights, firmware and CORVON743V2 changes need a separate reviewed build.'}
+--- a/phone.html
++++ b/phone.html
+@@ -1 +1 @@
+-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AXL Phone GPS</title><link rel="stylesheet" href="/phone.css"><script src="/phone.js" defer></script></head><body><main><p class="eyebrow">AXL Â· LOCAL CONNECTION</p><h1>Share your location</h1><p>Send this iPhoneâ€™s location to your Orange Pi and ESP32 display.</p><p id="state" role="status" aria-live="polite">Ready to start</p><button id="start">Start GPS sharing</button><button id="stop" disabled>Stop sharing</button><button id="awake">Keep screen awake while sharing</button><p id="awake-state" role="status">Screen-awake mode is off. It cannot enable background GPS.</p><dl><dt>Location quality</dt><dd id="accuracy">Waiting</dd><dt>Last accepted update</dt><dd id="received">None</dd><dt>Link</dt><dd>HTTPS over Wi-Fi Â· not Bluetooth</dd></dl><p>Keep this page visible and your iPhone awake. Switching apps or locking the phone may stop updates. The display marks positions stale after 3 seconds.</p><p>Your phoneâ€™s position is an observation. It is not the droneâ€™s GPS and does not command the H743. Coordinates stay in memory on your local devices.</p><p>For internet access, use your separate private Field Wi-Fi setup link, then enable Personal Hotspot. This page does not enable tethering or authorize software updates.</p></main></body></html>
++<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AXL Phone GPS</title><link rel="stylesheet" href="/phone.css"><script src="/phone.js" defer></script></head><body><main><p class="eyebrow">AXL Â· LOCAL CONNECTION</p><h1>Share your location</h1><p>Send this iPhoneâ€™s location to your Orange Pi and ESP32 display.</p><p id="state" role="status" aria-live="polite">Ready to start</p><button id="start">Start GPS sharing</button><button id="stop" disabled>Stop sharing</button><button id="awake">Keep screen awake while sharing</button><p id="awake-state" role="status">Screen-awake mode is off. It cannot enable background GPS.</p><dl><dt>Location quality</dt><dd id="accuracy">Waiting</dd><dt>Last accepted update</dt><dd id="received">None</dd><dt>Link</dt><dd>HTTPS over Wi-Fi Â· not Bluetooth</dd></dl><p>Keep this page visible and your iPhone awake. Switching apps or locking the phone may stop updates. The display marks positions stale after 3 seconds.</p><p>Your phoneâ€™s position is an observation. It is not the droneâ€™s GPS and does not command the CORVON743V2. Coordinates stay in memory on your local devices.</p><p>For internet access, use your separate private Field Wi-Fi setup link, then enable Personal Hotspot. This page does not enable tethering or authorize software updates.</p></main></body></html>
+--- a/qwen_adapter_worker.py
++++ b/qwen_adapter_worker.py
+@@ -28 +28 @@
+-    ('Which device has flight-critical authority?', 'The MicoAir H743 V2, not the Orange Pi.'),
++    ('Which device has flight-critical authority?', 'The CORVON743V2, not the Orange Pi.'),

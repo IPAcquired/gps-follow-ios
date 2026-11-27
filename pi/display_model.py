@@ -1,0 +1,234 @@
+"""Desktop pixels and touch coordinates for the 480 by 296 screen viewport."""
+import struct
+from collections import defaultdict
+from dataclasses import dataclass,field
+from PIL import Image, ImageChops, ImageDraw
+
+WIDTH, HEIGHT = 480, 296
+TILE_W, TILE_H = 17, 12
+CLEAR, HEARTBEAT = b"\x03", b"\x04"
+
+
+def rgb565(image):
+    red, green, blue = image.convert("RGB").split()
+    high = ImageChops.add(red.point([v & 0xF8 for v in range(256)]),
+                          green.point([v >> 5 for v in range(256)]))
+    low = ImageChops.add(green.point([(v & 0x1C) << 3 for v in range(256)]),
+                         blue.point([v >> 3 for v in range(256)]))
+    return Image.merge("LA", (high, low))
+
+
+@dataclass(frozen=True)
+class Viewport:
+    x: int
+    y: int
+    w: int
+    h: int
+    source_box:tuple=None
+    native:object=field(default=None,compare=False,repr=False)
+
+    def point(self, x, y):
+        if not self.x <= x < self.x + self.w or not self.y <= y < self.y + self.h:
+            return None
+        px=(x-self.x)/max(1,self.w-1);py=(y-self.y)/max(1,self.h-1)
+        if self.source_box:
+            left,top,width,height,fullw,fullh=self.source_box
+            px=(left+px*(width-1))/max(1,fullw-1)
+            py=(top+py*(height-1))/max(1,fullh-1)
+        return round(px*10000),round(py*10000)
+
+
+def fit_frame(image,*,native=False,source_box=None):
+    factor = min(WIDTH / image.width, HEIGHT / image.height)
+    w, h = max(1, round(image.width * factor)), max(1, round(image.height * factor))
+    area = Viewport((WIDTH - w) // 2, (HEIGHT - h) // 2, w, h,source_box,image.convert("RGB") if native else None)
+    canvas = Image.new("LA", (WIDTH, HEIGHT))
+    canvas.paste(rgb565(image.resize((w, h), Image.Resampling.LANCZOS)), (area.x, area.y))
+    return canvas, area
+
+
+class Zoom:
+    def __init__(self):
+        self.level=1;self.cx=self.cy=.5
+        self.revision=0
+
+    def command(self,action):
+        if action not in range(7):raise ValueError("Invalid viewport operation.")
+        if action<=2:self.level=action+1
+        else:
+            dx,dy={3:(-1,0),4:(1,0),5:(0,-1),6:(0,1)}[action]
+            self.cx+=dx/(4*self.level);self.cy+=dy/(4*self.level)
+        half=.5/self.level
+        self.cx=min(1-half,max(half,self.cx));self.cy=min(1-half,max(half,self.cy))
+        self.revision+=1
+
+    def project(self,frame,view):
+        if self.level==1:return frame,view
+        image=view.native
+        if image is None:raise ValueError("Native desktop capture unavailable for zoom.")
+        width,height=image.size;w=max(1,round(width/self.level));h=max(1,round(height/self.level))
+        x=max(0,min(width-w,round(width*self.cx-w/2)));y=max(0,min(height-h,round(height*self.cy-h/2)))
+        return fit_frame(image.crop((x,y,x+w,y+h)),source_box=(x,y,w,h,width,height))
+
+
+def synthetic_frame(pressed=False):
+    image = Image.new("RGB", (WIDTH, HEIGHT), "#152434")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((80, 64, 175, 139), fill="#00cc66" if pressed else "#dd4422")
+    draw.rectangle((304, 156, 399, 231), fill="#3377ee")
+    return image
+
+
+@dataclass
+class Patch:
+    rect: tuple
+    data: bytes
+    packet: bytes
+
+    def apply(self, canvas):
+        x, y, w, h = self.rect
+        canvas.paste(Image.frombytes("LA", (w, h), self.data), (x, y))
+
+
+def pattern_patches(current, target, _start=0):
+    """Each button of the fixed pattern is a single, fully acknowledged rectangle."""
+    for index,(x,y,w,h) in enumerate(((80,64,96,76),(304,156,96,76))):
+        box=x,y,x+w,y+h
+        pixels=target.crop(box).tobytes()
+        if current.crop(box).tobytes()==pixels:
+            continue
+        color=pixels[:2]
+        if pixels!=color*(w*h):
+            raise ValueError("Unexpected synthetic pattern color.")
+        packet=struct.pack(">B4H",1,x,y,w,h)+color
+        yield index,Patch((x,y,w,h),pixels,packet)
+
+
+def initial_background(target):
+    sample = target.resize((120, 74), Image.Resampling.NEAREST)
+    count, color = max(sample.getcolors(120 * 74))
+    if color == (0, 0) or count < 120 * 74 // 3:
+        return None
+    data = bytes(color)
+    return Patch((0, 0, WIDTH, HEIGHT), data * (WIDTH * HEIGHT),
+                 struct.pack(">B4H", 1, 0, 0, WIDTH, HEIGHT) + data)
+
+
+def changed_row(before, after):
+    if after == before:
+        return None
+    left, right = 0, len(after)
+    while after[left:left+2] == before[left:left+2]:
+        left += 2
+    while after[right-2:right] == before[right-2:right]:
+        right -= 2
+    return left // 2, after[left:right]
+
+
+def patches(current, target, start=0):
+    """Yield only changed tile areas. Caller commits each after the device ACK."""
+    high, low = ImageChops.difference(current, target).split()
+    bounds = ImageChops.lighter(high, low).getbbox()
+    if bounds is None:
+        return
+    changed = target.crop(bounds)
+    if all(vmin == vmax for vmin, vmax in changed.getextrema()):
+        x, y, right, bottom = bounds
+        color = bytes(changed.getpixel((0, 0)))
+        width, height = right - x, bottom - y
+        yield start, Patch((x, y, width, height), color * (width * height),
+                           struct.pack(">B4H", 1, x, y, width, height) + color)
+        return
+    cols = (WIDTH + TILE_W - 1) // TILE_W
+    rows = (HEIGHT + TILE_H - 1) // TILE_H
+    for step in range(cols * rows):
+        index = (start + step) % (cols * rows)
+        x, y = index % cols * TILE_W, index // cols * TILE_H
+        w, h = min(WIDTH - x, TILE_W), min(HEIGHT - y, TILE_H)
+        if x >= bounds[2] or y >= bounds[3] or x + w <= bounds[0] or y + h <= bounds[1]:
+            continue
+        box = (x, y, x + w, y + h)
+        data = target.crop(box).tobytes()
+        before = current.crop(box).tobytes()
+        if data == before:
+            continue
+        if data == data[:2] * (w * h):
+            yield index, Patch((x, y, w, h), data, struct.pack(">B4H", 1,x,y,w,h) + data[:2])
+            continue
+        stride = 2 * w
+        changes = [changed_row(before[i:i+stride], data[i:i+stride]) for i in range(0, len(data), stride)]
+        row = 0
+        while row < h:
+            if changes[row] is None:
+                row += 1
+                continue
+            left, after = changes[row]
+            width, run = len(after) // 2, 1
+            if after == after[:2] * width:
+                while row + run < h and changes[row + run] == changes[row]:
+                    run += 1
+                packet = struct.pack(">B4H", 1, x + left, y + row, width, run) + after[:2]
+            else:
+                packet = struct.pack(">BHHB", 2, x + left, y + row, width) + after
+            yield index, Patch((x + left, y + row, width, run), after * run, packet)
+            row += run
+
+
+def desktop_updates(current,target,start=0):
+    """Merge exact neighboring solid fills; row payloads retain every RGB565 pixel."""
+    def merge(rectangles,vertical):
+        groups=defaultdict(list)
+        for x,y,w,h,color in rectangles:
+            group=(x,w,color) if vertical else (y,h,color)
+            groups[group].append((y,h) if vertical else (x,w))
+        joined=[]
+        for (axis,width,color),runs in groups.items():
+            ordered=sorted(runs)
+            first,length=ordered[0]
+            for point,extent in ordered[1:]:
+                if first+length==point:
+                    length+=extent
+                else:
+                    joined.append((axis,first,width,length,color) if vertical else (first,axis,length,width,color))
+                    first,length=point,extent
+            joined.append((axis,first,width,length,color) if vertical else (first,axis,length,width,color))
+        return joined
+    solids=[];updates=[]
+    for index,patch in patches(current,target,start):
+        if patch.packet[0]==1:
+            solids.append((*patch.rect,patch.data[:2]))
+        else:
+            updates.append((index,patch))
+    for _ in range(2):
+        before=len(solids);solids=merge(merge(solids,False),True)
+        if len(solids)==before:break
+    cols=(WIDTH+TILE_W-1)//TILE_W
+    tiles=cols*((HEIGHT+TILE_H-1)//TILE_H)
+    for x,y,w,h,color in solids:
+        index=(y//TILE_H)*cols+x//TILE_W
+        updates.append((index,Patch((x,y,w,h),color*(w*h),struct.pack(">B4H",1,x,y,w,h)+color)))
+    return sorted(updates,key=lambda item:(item[0]-start)%tiles)
+
+
+class Gesture:
+    def __init__(self):
+        self.start = None
+        self.invalid = False
+
+    def feed(self, state, x, y, view):
+        point = view.point(x, y) if view else None
+        if state == 1:
+            if self.start is None and not self.invalid:
+                self.start = (x, y, point) if point is not None else None
+            self.invalid |= point is None
+            return None
+        if state != 2:
+            return None
+        start, invalid = self.start, self.invalid
+        self.start, self.invalid = None, False
+        if not start or not point or invalid:
+            return None
+        sx, sy, (px, py) = start
+        if max(abs(x - sx), abs(y - sy)) < 5:
+            return {"type":"tap", "x":point[0], "y":point[1], "button":"left"}
+        return {"type":"drag","x":px,"y":py,"end_x":point[0],"end_y":point[1]}
