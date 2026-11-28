@@ -1,35 +1,55 @@
-# Orange Pi offline field change review
+# Orange Pi owner field tools
 
-This update adds a touchscreen-friendly decision window and local model review to an existing CORVON companion installation. Open **Applications → Settings → Field change review** on the signed-in Orange Pi desktop or its paired ESP32 field screen. The window shows the old and proposed values, the reason for each proposal, the current model decisions and the exact digest submitted to the owner.
+Two optional tools run under the signed-in Pi desktop owner. The Field terminal adds an Xfce application menu entry. The field-review layout update adjusts the existing GTK window for smaller screens and orientation changes. Each tool has its own installer and rollback. Close any open Field change review window before updating its layout.
 
-## Install offline
+## Open the kit on the Pi
 
-Use the current desktop owner's account. The Pi needs its existing CORVON maintenance kit, AI team and policy tools, three installed model weights, a functioning controller monitor, Python 3 and GTK 3 Python bindings. Keep the extracted update in one directory. Run from its root.
-
-```sh
-sha256sum -c SHA256SUMS &&
-python3 -B model/install_model_review.py stage &&
-python3 -B model/install_model_review.py activate &&
-python3 -B ui/install.py
-```
-
-For optional notifications about newly pending proposals, run `python3 -B ui/install.py --notifications`. It enables a local desktop notifier on the next login. The update includes no model weights or device-specific setup.
-
-## Decide in the field
-
-Open a proposal and inspect each change. The four required local profiles must approve the same digest. A missed vote, model rejection, changed proposal, stale or mismatched telemetry, or a configured hosted-review requirement that cannot be satisfied keeps approval on hold.
-
-**Approve digest** asks the signed-in owner to confirm the full SHA-256 and saves a private decision. **Decline** retains the proposal and its decision. **Later** leaves it staged. A fresh decision is required after the original approval expires. Approving a digest does not itself apply the change.
-
-An approved local AI policy can be applied by a separate explicit action. An approved native-UART telemetry-profile plan can be handed to the existing guarded maintenance tool from a foreground terminal with the owner's existing administrator authorization. That tool rechecks the connected board, ground state, pre-state, journal and exact proposal. Other flight parameters, firmware, USB-route adjustments and recovery operations require their existing manual procedures.
-
-Follow the [operator guide](ui/README.md) for the queues, buttons, handoff and local file locations. The [model review guide](model/MODEL-REVIEW.md) lists the four profiles and the conditions that hold a proposal.
-
-## Roll back
-
-Close the review window and run the commands below from this package as the same owner. They restore the previous application files and AI entry points. Local decisions, proposals and review receipts remain private on the Pi.
+Download the ZIP and its adjacent checksum sidecar from this release. From their download directory, run the following commands in a local terminal.
 
 ```sh
-python3 -B ui/install.py --rollback &&
-python3 -B model/install_model_review.py rollback
+sha256sum -c Orange-Pi-owner-field-tools-1.0.0.zip.sha256
+unzip Orange-Pi-owner-field-tools-1.0.0.zip -d owner-field-tools-1.0.0
+cd owner-field-tools-1.0.0
+sha256sum -c SHA256SUMS
 ```
+
+If the Pi has no terminal emulator yet, save both downloads in the owner's Downloads directory and use the Xfce file manager to extract the ZIP to `Downloads/owner-field-tools-1.0.0`. Press **Alt+F2** on the local Pi desktop and enter this single command. It checks the downloaded ZIP and the extracted files before opening the staged graphical test and installing the terminal. The directory names must match your download location.
+
+```sh
+/bin/sh -c 'cd "$HOME/Downloads" && sha256sum -c Orange-Pi-owner-field-tools-1.0.0.zip.sha256 && cd owner-field-tools-1.0.0 && sha256sum -c SHA256SUMS && exec /usr/bin/python3 -B owner_terminal.py install --gui'
+```
+
+## Field terminal
+
+First installation requires Python 3, the distribution's Python APT bindings, dpkg, compatible installed system libraries, and access to the exact official package versions in the Pi's existing package indexes. The installer downloads xterm and libutempter0, verifies each archive against the trusted distribution index, and keeps the terminal, its library and the two copyright notices under the owner's home directory. The optional graphical test opens a temporary iconic X11 terminal and checks the shell's pseudo-terminal. Run it from the active graphical owner session.
+
+```sh
+/usr/bin/python3 -B owner_terminal.py install --gui
+/usr/bin/python3 -B owner_terminal.py status
+```
+
+Launch **Applications > System > Field terminal**. It uses the current X11 desktop dimensions at launch and chooses a readable default size. If the Pi has no compatible X11 session at installation time, use `probe` for a staging-only package and linker check. Once installed, the terminal can run offline.
+
+```sh
+/usr/bin/python3 -B owner_terminal.py remove
+```
+
+Removal checks the saved hashes before deleting the owner-local payload and launchers. If an earlier private test revision is installed, use this same remove command before installing the current launcher.
+
+## Field-review window
+
+The layout update requires the original GTK source from the existing field-review 1.0.0 installation. It checks that source and reconstructs the tested GTK file locally. It saves the previous GTK bytes, file mode and upstream rollback journal under the owner's existing installer state. A changed original is reported before replacement.
+
+```sh
+/usr/bin/python3 -B install_layout.py install
+/usr/bin/python3 -B install_layout.py status
+```
+
+Open **Applications > Settings > Field change review**. Close and reopen an existing window to pick up the new layout. Restore the prior GTK file and original installer journal using the extracted kit.
+
+```sh
+/usr/bin/python3 -B install_layout.py rollback
+```
+
+Both installers run as the ordinary owner. The separate field-review worker and the paired RC6 display release have their own installation and recovery instructions. [Original field-review release](https://github.com/IPAcquired/gps-follow-ios/releases/tag/orangepi-field-change-review-v1.0.0) | [RC6 display release](https://github.com/IPAcquired/gps-follow-ios/releases/tag/wired-field-console-r3.4-rc6)
+

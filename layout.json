@@ -1,0 +1,22 @@
+[
+  [
+    33,
+    33,
+    "        self.fit_target = None\n"
+  ],
+  [
+    37,
+    37,
+    "        screen = self.get_screen()\n        resize_handler = screen.connect(\"size-changed\", lambda *_: self.size_for_field_screen(self, self.get_allocation()))\n        self.connect(\"destroy\", lambda *_: screen.disconnect(resize_handler))\n"
+  ],
+  [
+    55,
+    57,
+    "        width, height = area.width, area.height\n        target = None\n        if self.get_window():\n            monitor = self.get_display().get_monitor_at_window(self.get_window())\n            if monitor:\n                bounds = monitor.get_workarea()\n                if bounds.width > 0 and bounds.height > 0 and (width > bounds.width or height > bounds.height):\n                    # GTK may retain the previous monitor's minimum width on rotation.\n                    width, height = bounds.width, bounds.height\n                    target = (width, height)\n        if target != self.fit_target:\n            self.fit_target = target\n            if target:\n                # GTK recalculates styled requisitions over subsequent display frames.\n                GLib.timeout_add(40, self.finish_monitor_resize, target, time.monotonic()+0.7)\n        # A tall screen still has to fit three side-by-side decision buttons.\n        factor = width / 480\n        if width >= height:\n            factor = max(factor, height / 296)\n        scale = max(1, round(factor, 1))\n"
+  ],
+  [
+    69,
+    69,
+    "\n    def finish_monitor_resize(self, target, deadline):\n        if target != self.fit_target or not self.get_realized() or time.monotonic() >= deadline:\n            return False\n        self.resize(*target)\n        return True\n"
+  ]
+]
