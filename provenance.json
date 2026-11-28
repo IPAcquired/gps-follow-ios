@@ -1,0 +1,38 @@
+{
+  "activate_sha256": "7542cb69b0a3660f95701d8b3fb509a2b77a0da425f901a7ae65fd7a6cbacbf8",
+  "base_kit_sha256": "e29b0f5df0ad97ace9aeb0b742a7ee1ad82c6537e5430986fa57c9fe70352125",
+  "base_release": "wired-field-console-r3.4-rc6",
+  "modules": {
+    "desktop_source.py": {
+      "accepted": [
+        "4c463d6ed8c9a89db7f3fe658c650ce1460d55f2b301804fe33ffdd7553bc449"
+      ],
+      "new": "88f2fc9745a07cd6a4aa8c5e27a8b8608a6958d964edbf037c3fefe25d72faeb"
+    },
+    "display_damage.py": {
+      "accepted": [
+        "5d4bf91ca5c816110b0031ced26cef721805435d48408aebcef4a83632f3b54a"
+      ],
+      "new": "102165d774ff7b74223820781f90facaf6ecf0d305bf2d4d8b08a29da56c02f3"
+    },
+    "display_model.py": {
+      "accepted": [
+        "8738c181eddaba80057926fc05b58011273c161dd88862a9110f59275ed438b0"
+      ],
+      "new": "2c077b617f1a3b1256b61b5250afac21087a70b5554fbcf6f32cb498ef88d6bc"
+    },
+    "scene_codec.py": {
+      "accepted": [
+        "937ed4e3f87c97d82199dc7bc7faded8aab5e3fd4d6d40c4153d1d714614a977"
+      ],
+      "new": "b45748aa7d4dcd9ad048c83a53147b8350cff95fdef6fb6ba4fce5f2dc3fa0ed"
+    },
+    "wired_desktop.py": {
+      "accepted": [
+        "6aaa3f22c340ec8ee923fffa855cb31f9e00d91ded10f143dd21403be5896d88"
+      ],
+      "new": "522209a8272d7890f951e53b8dc15f49926418a123528b75a90f9e1d2155f5e9"
+    }
+  },
+  "upgrade_existing_sha256": "f1ad7c4ae46e6ef93819af3334dcbee8a467638c80ab013ae30a66b2f81d82a8"
+}

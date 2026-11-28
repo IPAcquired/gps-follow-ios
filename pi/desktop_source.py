@@ -19,8 +19,39 @@ from dataclasses import replace
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from PIL import Image
-from display_model import LANDSCAPE, PORTRAIT, fit_frame, synthetic_frame
+from PIL import Image, ImageChops
+from display_model import LANDSCAPE, PORTRAIT, fit_frame, rgb565, synthetic_frame
+
+
+def paired_fit(image, surface, previous):
+    """Fit small changes at exact 2:1 using the same full-image Lanczos filter."""
+    w, h = surface
+    if previous is None or image.size != (2*w, 2*h):
+        return fit_frame(image, native=True, surface=surface)
+    panel, view = previous
+    old = view.native
+    if panel.size != surface or old is None or old.size != image.size:
+        return fit_frame(image, native=True, surface=surface)
+    # Two distant changes imply a large dirty box. Skip constructing the full
+    # difference image for common full-scene changes.
+    diagonal = ((w//2, h//2), (3*w//2, 3*h//2))
+    if all(old.getpixel(p) != image.getpixel(p) for p in diagonal):
+        return fit_frame(image, native=True, surface=surface)
+    changed = ImageChops.difference(old, image).getbbox()
+    if changed is None:
+        return previous
+    x, y, right, bottom = changed
+    # Lanczos radius 3 output samples at this scale. Keep global input
+    # coordinates: a source crop would truncate support and change edge colors.
+    x, y = max(0, x//2-3), max(0, y//2-3)
+    right, bottom = min(w, (right+1)//2+3), min(h, (bottom+1)//2+3)
+    if (right-x)*(bottom-y) > w*h//5:
+        return fit_frame(image, native=True, surface=surface)
+    region = image.resize((right-x, bottom-y), Image.Resampling.LANCZOS,
+                          box=(x*2, y*2, right*2, bottom*2))
+    refreshed = panel.copy()
+    refreshed.paste(rgb565(region), (x, y))
+    return refreshed, replace(view, native=image.copy())
 
 
 def capability_valid(value, config, now):
@@ -46,6 +77,7 @@ class OwnerDesktop:
         self.pointer_watcher = None
         self.prefer_lossless = False
         self.clean_frame = self.last_pointer = None
+        self.rgb_fit = False
 
     def authorize(self):
         if not sys.stdin.isatty() or not sys.stderr.isatty():
@@ -118,7 +150,12 @@ class OwnerDesktop:
             if portrait:bounded |= 1<=image.width<=640 and 1<=image.height<=912
             if image.size != (result["width"], result["height"]) or not bounded:
                 raise ValueError("Unexpected desktop dimensions.")
-            fitted = fit_frame(image,native=True,surface=self.surface)
+            eligible = paired and self.pointer_watcher is not None and image.mode == "RGB"
+            if eligible:
+                fitted = paired_fit(image, self.surface, self.clean_frame if self.rgb_fit else None)
+            else:
+                fitted = fit_frame(image,native=True,surface=self.surface)
+            self.rgb_fit = eligible
         self.base = identity
         if self.pointer_watcher is not None:
             self.clean_frame = fitted
@@ -141,6 +178,7 @@ class OwnerDesktop:
 
     def close(self):
         self.clean_frame = self.last_pointer = self.pointer_watcher = None
+        self.rgb_fit = False
         self.prefer_lossless = False
         self.base = ""
         self.call("lock")

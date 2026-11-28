@@ -1,5 +1,5 @@
 {
-  "base_release": "R3.4-rc4",
+  "base_release": "R3.4-rc6",
   "installer": "7542cb69b0a3660f95701d8b3fb509a2b77a0da425f901a7ae65fd7a6cbacbf8",
   "original_files": [
     "README.txt",
@@ -18,6 +18,7 @@
     "scene_codec.py",
     "screen_sockets.py",
     "test_bridge_usb.py",
+    "test_cursor_union.py",
     "test_desktop.py",
     "test_direct_scene_plans.py",
     "test_direct_usb.py",
@@ -30,65 +31,43 @@
     "test_interactive_paints.py",
     "test_lossless_source.py",
     "test_pair_service.py",
+    "test_pointer_first.py",
+    "test_portrait_surface.py",
     "test_scene_codec.py",
     "test_screen_sockets.py",
     "wired_desktop.py"
   ],
-  "release": "R3.4-rc6",
+  "release": "R3.4-rc7",
   "updates": {
-    "auto_service.py": {
-      "accepted": [
-        "23d6141f255ea34a2394080560288818a82764e5b20cf4e32267d5773f371704"
-      ],
-      "new": "1f5032f50341acfa9faba572f336962aa8d48763593ad09645c6e5b68d7e93c7"
-    },
     "desktop_source.py": {
       "accepted": [
-        "5ee15439bd34efc254a83d73c448bfad4a913c96aaa7262e2609d210fc60d845"
+        "4c463d6ed8c9a89db7f3fe658c650ce1460d55f2b301804fe33ffdd7553bc449"
       ],
-      "new": "4c463d6ed8c9a89db7f3fe658c650ce1460d55f2b301804fe33ffdd7553bc449"
+      "new": "88f2fc9745a07cd6a4aa8c5e27a8b8608a6958d964edbf037c3fefe25d72faeb"
+    },
+    "display_damage.py": {
+      "accepted": [
+        "5d4bf91ca5c816110b0031ced26cef721805435d48408aebcef4a83632f3b54a"
+      ],
+      "new": "102165d774ff7b74223820781f90facaf6ecf0d305bf2d4d8b08a29da56c02f3"
     },
     "display_model.py": {
       "accepted": [
-        "c78ced5eecb240e5a7c9c01f28fcd5b95688a1b3280dbbb70cc5e82faa91857b"
+        "8738c181eddaba80057926fc05b58011273c161dd88862a9110f59275ed438b0"
       ],
-      "new": "8738c181eddaba80057926fc05b58011273c161dd88862a9110f59275ed438b0"
-    },
-    "paired_wire.py": {
-      "accepted": [
-        "05b8d86c8a1d2e8d42b899901920b9d50a7181ecd48f00759d6886b5f529ec11"
-      ],
-      "new": "09cb64868d91ed4e4c029bb72f57bf5e4203c5c052b42a5a5b26751bbb3a4335"
+      "new": "2c077b617f1a3b1256b61b5250afac21087a70b5554fbcf6f32cb498ef88d6bc"
     },
     "scene_codec.py": {
       "accepted": [
-        "874f03336180442773ef9370ac822583251f6e6b94384418ce4d7a3b9b2494bf"
+        "937ed4e3f87c97d82199dc7bc7faded8aab5e3fd4d6d40c4153d1d714614a977"
       ],
-      "new": "937ed4e3f87c97d82199dc7bc7faded8aab5e3fd4d6d40c4153d1d714614a977"
-    },
-    "test_cursor_union.py": {
-      "accepted": [
-        null
-      ],
-      "new": "03ca3b310d3b592f555ebd79eee917d90d8159d09a024533064a7be3c46257bd"
-    },
-    "test_pointer_first.py": {
-      "accepted": [
-        null
-      ],
-      "new": "6ed5124a5a1c87ecfeaffc844839b8713e66c86592bff40887d742b39b288c1a"
-    },
-    "test_portrait_surface.py": {
-      "accepted": [
-        null
-      ],
-      "new": "d4a2bd170332076d3e60e87854f39ce8a09b69f6efad4a443247b594f7be3d0f"
+      "new": "b45748aa7d4dcd9ad048c83a53147b8350cff95fdef6fb6ba4fce5f2dc3fa0ed"
     },
     "wired_desktop.py": {
       "accepted": [
-        "62c4fc34548d0aa41d2441fd81115d3f7ce13ad4f4ccf6aac80bf2c16abe6539"
+        "6aaa3f22c340ec8ee923fffa855cb31f9e00d91ded10f143dd21403be5896d88"
       ],
-      "new": "6aaa3f22c340ec8ee923fffa855cb31f9e00d91ded10f143dd21403be5896d88"
+      "new": "522209a8272d7890f951e53b8dc15f49926418a123528b75a90f9e1d2155f5e9"
     }
   }
 }

@@ -1,5 +1,6 @@
 """Desktop pixels and touch coordinates for the negotiated screen viewport."""
 import struct
+from bisect import bisect_left
 from collections import defaultdict
 from dataclasses import dataclass,field,replace
 from PIL import Image, ImageChops, ImageDraw
@@ -175,10 +176,33 @@ def changed_row(before, after):
     return left // 2, after[left:right]
 
 
+def dirty_tiles(mask, bounds, start):
+    """Return dirty tile indices in the same cyclic order as the wire planner."""
+    width,height = mask.size
+    cols = (width + TILE_W - 1) // TILE_W
+    rows = (height + TILE_H - 1) // TILE_H
+    first_col,first_row = bounds[0]//TILE_W,bounds[1]//TILE_H
+    end_col = (bounds[2]+TILE_W-1)//TILE_W
+    end_row = (bounds[3]+TILE_H-1)//TILE_H
+    # One set pixel yields at least 255 / (17*12) in its tile's average.
+    # Align the crop to the global tile grid, including partial edge tiles.
+    crop = (first_col*TILE_W,first_row*TILE_H,min(width,end_col*TILE_W),min(height,end_row*TILE_H))
+    binary = mask.crop(crop).point(_DIRTY_LEVELS)
+    flags = binary.reduce((TILE_W,TILE_H)).tobytes()
+    span = end_col-first_col
+    indices = [(first_row+n//span)*cols+first_col+n%span for n,v in enumerate(flags) if v]
+    pivot = bisect_left(indices,start % (cols*rows))
+    return indices[pivot:]+indices[:pivot]
+
+
+_DIRTY_LEVELS = [0]+[255]*255
+
+
 def patches(current, target, start=0):
     """Yield only changed tile areas. Caller commits each after the device ACK."""
     high, low = ImageChops.difference(current, target).split()
-    bounds = ImageChops.lighter(high, low).getbbox()
+    mask = ImageChops.lighter(high, low)
+    bounds = mask.getbbox()
     if bounds is None:
         return
     changed = target.crop(bounds)
@@ -190,13 +214,9 @@ def patches(current, target, start=0):
                            struct.pack(">B4H", 1, x, y, width, height) + color)
         return
     cols = (target.width + TILE_W - 1) // TILE_W
-    rows = (target.height + TILE_H - 1) // TILE_H
-    for step in range(cols * rows):
-        index = (start + step) % (cols * rows)
+    for index in dirty_tiles(mask, bounds, start):
         x, y = index % cols * TILE_W, index // cols * TILE_H
         w, h = min(target.width - x, TILE_W), min(target.height - y, TILE_H)
-        if x >= bounds[2] or y >= bounds[3] or x + w <= bounds[0] or y + h <= bounds[1]:
-            continue
         box = (x, y, x + w, y + h)
         data = target.crop(box).tobytes()
         before = current.crop(box).tobytes()
@@ -264,21 +284,31 @@ class Gesture:
     def __init__(self):
         self.start = None
         self.invalid = False
+        self.moved = False
 
     def feed(self, state, x, y, view):
+        if state not in (1, 2):
+            return None
         point = view.point(x, y) if view else None
+        mapping = (view.x, view.y, view.w, view.h, view.source_box) if view else None
+        if self.start is not None:
+            sx, sy, _, initial_mapping = self.start
+            self.invalid |= mapping != initial_mapping
+            self.moved |= max(abs(x - sx), abs(y - sy)) >= 5
         if state == 1:
-            if self.start is None and not self.invalid:
-                self.start = (x, y, point) if point is not None else None
+            if self.start is None and not self.invalid and point is not None:
+                self.start = (x, y, point, mapping)
             self.invalid |= point is None
             return None
-        if state != 2:
-            return None
-        start, invalid = self.start, self.invalid
-        self.start, self.invalid = None, False
+        start, invalid, moved = self.start, self.invalid, self.moved
+        self.start, self.invalid, self.moved = None, False, False
         if not start or not point or invalid:
             return None
-        sx, sy, (px, py) = start
+        sx, sy, (px, py), _ = start
         if max(abs(x - sx), abs(y - sy)) < 5:
+            # The wire action contains endpoints only. A loop cannot be safely
+            # reproduced as a drag between coincident points or as a click.
+            if moved:
+                return None
             return {"type":"tap", "x":point[0], "y":point[1], "button":"left"}
         return {"type":"drag","x":px,"y":py,"end_x":point[0],"end_y":point[1]}

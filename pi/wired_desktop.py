@@ -212,6 +212,7 @@ def serve(serial, worker, duration=None, *, link_factory=Link, notice=lambda nam
     testing = isinstance(worker.source, Pattern)
     timed_tap = None
     last_tap = None
+    input_epoch = 0
     invalidate=False
     lower_blocked=False
     zoom=Zoom()
@@ -234,7 +235,8 @@ def serve(serial, worker, duration=None, *, link_factory=Link, notice=lambda nam
             cached_clean=frame
         return key,*cached
     def touch(state, x, y):
-        nonlocal timed_tap,focus_revision,last_tap
+        nonlocal timed_tap,focus_revision,last_tap,input_epoch
+        input_epoch += 1
         _, latest, view = projected()
         current_place=(touch_ready and zoom_wait is None and latest is not None and view==present_view and not (lower_blocked and y>=keys_top)
                        and same_neighborhood(latest,present,x,y))
@@ -255,6 +257,8 @@ def serve(serial, worker, duration=None, *, link_factory=Link, notice=lambda nam
     link = link_factory(serial, touch, worker.snapshot)
     def accept_control(kind,seq,instruction):
         nonlocal invalidate,lower_blocked,zoom_wait,zoom_painted,focus_revision,work_item,touch_ready
+        nonlocal input_epoch
+        input_epoch += 1
         worker.snapshot()
         if kind==0x26:
             invalidate=lower_blocked=True
@@ -384,6 +388,7 @@ def serve(serial, worker, duration=None, *, link_factory=Link, notice=lambda nam
                 scroll_change = zoom_wait is not None or (present_view is not None and view != present_view)
                 prefix_box = view.pointer_box
                 prefix_background = target_background[0]
+                retargeted=False
                 if direct_usb and capabilities&1 and not first_paint:
                     if scroll_change and shown_cursor and under_cursor is not None:
                         restore = present.copy()
@@ -396,8 +401,39 @@ def serve(serial, worker, duration=None, *, link_factory=Link, notice=lambda nam
                                                              exact=exact,burst=burst)
                         else:
                             pointer_prefix = pointer_updates(present,target,shown_cursor,view.pointer_box)
+                    # Two entries here are the independent erase and draw in pointer_updates().
+                    # Single overlapping boxes, compressed unions, zoom and local overlays stay atomic.
+                    if (burst>1 and not scroll_change and zoom.level==1 and zoom_wait is None
+                            and not lower_blocked and gesture.start is None and work_item is None
+                            and shown_cursor and prefix_box and max(shown_cursor[3],prefix_box[3])<=keys_top
+                            and len(pointer_prefix)==2
+                            and (shown_cursor[2]<prefix_box[0] or prefix_box[2]<shown_cursor[0]
+                                 or shown_cursor[3]<prefix_box[1] or prefix_box[3]<shown_cursor[1])):
+                        epoch=input_epoch
+                        issued=time.monotonic()
+                        count=send_patch(pointer_prefix[0][1])
+                        notice("dirty-commit",(count,round((time.monotonic()-issued)*1000)))
+                        pointer_prefix=pointer_prefix[1:]
+                        if invalidate or key[1]!=zoom.revision:
+                            shown_cursor=under_cursor=present_clean=plan=None
+                            pointer_remaining=minimum_tasks=0
+                            hold_plan=False
+                            last_id=key
+                            continue
+                        ident,latest_clean,latest_view=worker.snapshot()
+                        if (epoch==input_epoch and ident!=key[0] and latest_clean is target_clean
+                                and latest_view==view and latest_view.pointer is not None):
+                            fresh,area=with_pointer(*target_background,latest_view.pointer)
+                            if area.pointer_box and area.pointer_box[3]<=keys_top:
+                                redraw=pointer_updates(present,fresh,None,area.pointer_box)
+                                if len(redraw)==1:
+                                    key,target,view=(ident,key[1]),fresh,area
+                                    prefix_box=area.pointer_box
+                                    pointer_prefix=redraw
+                                    retargeted=True
+                                    notice("cursor-retarget",ident)
                     early_cursor = bool(pointer_prefix and not cursor_only and not scroll_change and shown_cursor
-                                        and prefix_box and shown_cursor!=prefix_box and getattr(link,"graphics_burst",1)>1)
+                                        and prefix_box and (shown_cursor!=prefix_box or retargeted) and getattr(link,"graphics_burst",1)>1)
                     if early_cursor:
                         # The target already passed the normal capture guard. Complete both
                         # acknowledged cursor rectangles before encoding unrelated desktop pixels.
@@ -429,7 +465,7 @@ def serve(serial, worker, duration=None, *, link_factory=Link, notice=lambda nam
                              else select_plan(working,target,start,first_paint or zoom_wait is not None,
                                               capabilities,direct_usb=direct_usb,jpeg_background=target_background[0]))
                 pointer_started = (encode_started if pointer_prefix and shown_cursor and prefix_box
-                                   and shown_cursor != prefix_box else None)
+                                   and (shown_cursor != prefix_box or retargeted) else None)
                 planned_clean=target_clean
                 planned_background=target_background
                 present_clean=None
@@ -522,6 +558,14 @@ def serve(serial, worker, duration=None, *, link_factory=Link, notice=lambda nam
                     if testing:
                         print(f"Pattern first-paint acknowledgement: {time.monotonic()-paint_started:.2f} s.",flush=True)
                     first_paint = False
+                elif (cursor_only and getattr(link,"graphics_burst",1)>1 and key[0]!=last_id[0]
+                      and key[1]==last_id[1] and target_clean is planned_clean and view==planned_view
+                      and view.pointer_box!=shown_cursor and not invalidate and zoom_wait is None):
+                    # The completed cursor graphics already carried a guarded reply.
+                    # A newer hotspot is ready on the same picture. Check health and
+                    # pending controls now, then send it without an empty USB poll.
+                    link.next_line(time.monotonic())
+                    continue
             link.next_line(time.monotonic() + 0.015)
     finally:
         worker.stop.set()

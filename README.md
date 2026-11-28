@@ -1,60 +1,45 @@
-# Paired Orange Pi desktop in landscape and portrait
+# Orange Pi display sender
 
-This offline update supports an enrolled E32R35T screen running the RC3 application, an Orange Pi running the RC4 sender, and the RC4 or RC5 companion capture modules. Keep the verified kit and the private staging directory printed during installation.
+Use this sender with the matched R3.4 RC6 display and companion. Save the original RC6 kit. The release provenance lists the exact base and replacement source hashes. Run the following commands in a terminal as the existing signed-in desktop owner.
 
-## Install on the Pi
+## Prepare the sender
 
-1. Download the release ZIP and its checksum. Run `sha256sum -c Orange-Pi-E32R35T-R3.4-rc6-matched.zip.sha256` in the download directory. Extract the ZIP into an empty directory owned by your normal desktop account. Run the remaining commands from the extracted directory.
-2. Verify the contents, then stage the new sender and its exact rollback. Save the path printed by the second command.
+Place the ZIP and checksum sidecar in the same directory. Choose a fresh extraction directory.
 
-   ```sh
-   sha256sum -c SHA256SUMS &&
-   work_dir="$(python3 -B upgrade_existing.py)" &&
-   printf '%s\n' "$work_dir" &&
-   python3 -B "$work_dir/upgrade/activate.py" stage
-   ```
+```sh
+sha256sum -c Orange-Pi-E32R35T-R3.4-rc7-sender-cc2fa0582906.zip.sha256 &&
+mkdir -m700 sender-update &&
+unzip -q Orange-Pi-E32R35T-R3.4-rc7-sender-cc2fa0582906.zip -d sender-update &&
+cd sender-update &&
+sha256sum -c SHA256SUMS &&
+python3 -B onbox.py prepare
+```
 
-3. Check the starting companion with `python3 -B landscape-base/display_update.py check`. If its two files show `original`, run `python3 -B landscape-base/display_update.py install` and record that step for rollback. If they show `installed`, proceed. Each installer checks exact file hashes and reports an unrecognized source.
-4. Connect the enrolled screen through its approved USB port and keep the Pi powered separately. The owner session needs a live, freshly disarmed controller. Check that esptool 4.9.0 is available to the Python interpreter with `python3 -c 'import esptool; print(esptool.__version__)'`. Use your existing owner-approved loader environment. Then install the screen application.
+Preparation verifies all 32 RC6 source files and the locally enrolled release. The stock installer builds and tests a separate immutable candidate release. The output identifies the private stage and immutable fallback paths on this Pi. Save them with the owner's local rollback records.
 
-   ```sh
-   python3 -B screen_update.py install
-   ```
+## Activate and check
 
-   The updater stops display discovery temporarily, verifies the physical screen and partition layout, and saves a private, verified copy of the affected app sectors under `~/.local/state/paired-display-rc6/`. Keep this directory on the Pi for recovery. It verifies the written application, adjacent flash, original enrollment and touch calibration before returning.
-5. Install the orientation-aware companion and activate the staged sender.
+```sh
+python3 -B onbox.py activate &&
+python3 -B onbox.py status
+```
 
-   ```sh
-   python3 -B broker_update.py install &&
-   python3 -B broker_update.py check &&
-   python3 -B "$work_dir/upgrade/activate.py" activate &&
-   systemctl --user is-active orange-pi-wired-desktop-discovery.service
-   ```
+The install checks the enrolled release, starts the existing user service, and verifies its local-only socket policy. Open Wired Desktop from the paired screen in the normal disarmed owner session. Check a complete frame, pointer movement, taps, local Back and the saved orientation.
 
-## Use and verify both orientations
+## Restore RC6
 
-The sender gives cursor erasure and redraw priority when desktop content also changes. On an authenticated direct link it can combine a nearby move into one smaller transfer when it has already confirmed the exact background pixels. Full transfers, session changes and uncertain background pixels retain their ordinary redraw path.
+From the extracted kit directory run
 
-Use **Back** to leave Wired Desktop. Select the desired screen orientation with the screen's existing rotation control, then open **Pi → Wired Desktop**. The desktop area is 480 × 296 pixels in landscape and 320 × 456 pixels in portrait. The bottom 24 rows hold the local controls, including **Back**. Set the viewer to its normal fit to see the complete desktop.
+```sh
+python3 -B onbox.py rollback &&
+python3 -B onbox.py status
+```
 
-Check all four corners, the midpoint of each edge and the center. First tap targets on the glass. Then point to and click those targets using the wireless mouse. Check the health indicator and open the Pi sensor menu. Return with **Back** and check local screen menus and the phone connection.
+Rollback uses the original saved enrollment and verifies all 33 original files. Restore RC6 before trying a different selection of sender modules. If the extracted kit is unavailable, use the saved private stage directory and the stock activation entry point.
 
-## Restore the prior installation
+```sh
+python3 -B "$stage_dir/rollback/activate.py" activate &&
+systemctl --user is-active orange-pi-wired-desktop-discovery.service
+```
 
-The sender installer starts from R3.4 RC4 and records the exact active release, including the local USB enrollment, as its rollback. Keep the stage path printed during installation. An owner running a previous experimental RC6 sender should use that installation's saved rollback to return to the approved RC4 sender before preparing this matched kit.
-
-Leave Wired Desktop. If the viewer reconnects automatically, pause capture with `systemctl --user stop orange-pi-wired-desktop-discovery.service`. Allow five seconds for the broker to restore the prior headless workspace. Confirm the current dimensions with `xrandr --current`.
-
-1. Restore the sender using the exact saved staging directory. In a new terminal, return to the extracted kit and set `work_dir` to the full staging path recorded in install step 2.
-
-   ```sh
-   python3 -B "$work_dir/rollback/activate.py" activate
-   ```
-
-2. Restore the RC5 companion with `python3 -B broker_update.py restore`. If installation step 3 upgraded the original RC4 companion on this Pi, also run `python3 -B landscape-base/display_update.py restore`.
-3. With the same enrolled screen connected and fresh disarmed status available, restore its original application sectors with `python3 -B screen_update.py restore`. After an interruption during a flash write, run this same command using the same kit. It checks the bound device and the existing private backup before proceeding.
-4. Start display discovery with `systemctl --user start orange-pi-wired-desktop-discovery.service`. Reopen the display and check the baseline sender, screen input, and local menus.
-
-## Rebuild the clean application
-
-The public tag contains the screen source under `screen/`, its pinned PlatformIO environment, and the firmware digest under `firmware/provenance.json`. With the listed toolchain installed, run `pio run --project-dir screen --environment flight_team`. The build produces the application under `screen/.pio/build/flight_team/firmware.bin`. The release ZIP supplies the verified app-only images and the reference partition table. Compare the application SHA-256 and size with the provenance record when reproducing the published build. Toolchain and build metadata can affect independently compiled bytes.
+Set `stage_dir` to the path previously printed by `prepare`. Reopen Wired Desktop and check the cursor, touch, Back and orientation.

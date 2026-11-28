@@ -58,9 +58,17 @@ def dense_change(current,target):
 
 def zlib_updates(current,target,bounds=None):
     result=[]
+    mask = None
     if bounds is None:
-        left,top,right,bottom = 0,0,*target.size
         tile_width,tile_height = 64,32
+        high,low = ImageChops.difference(current,target).split()
+        mask = ImageChops.lighter(high,low)
+        dirty_bounds = mask.getbbox()
+        if dirty_bounds is None:
+            return result
+        left,top,right,bottom = dirty_bounds
+        left -= left % tile_width
+        top -= top % tile_height
     else:
         left,top,right,bottom = bounds
         # The R3.3 receiver limits a decompressed tile to 2,048 RGB565 pixels.
@@ -70,11 +78,13 @@ def zlib_updates(current,target,bounds=None):
     for y in range(top,bottom,tile_height):
         for x in range(left,right,tile_width):
             box=(x,y,min(x+tile_width,right),min(y+tile_height,bottom))
-            portion=target.crop(box)
-            high,low=ImageChops.difference(current.crop(box),portion).split()
-            dirty=ImageChops.lighter(high,low).getbbox()
+            if mask is None:
+                high,low=ImageChops.difference(current.crop(box),target.crop(box)).split()
+                dirty=ImageChops.lighter(high,low).getbbox()
+            else:
+                dirty=mask.crop(box).getbbox()
             if dirty is None:continue
-            crop=portion.crop(dirty)
+            crop=target.crop((x+dirty[0],y+dirty[1],x+dirty[2],y+dirty[3]))
             w,h=crop.size;px,py=x+dirty[0],y+dirty[1]
             rect=px,py,w,h
             raw=crop.tobytes()
