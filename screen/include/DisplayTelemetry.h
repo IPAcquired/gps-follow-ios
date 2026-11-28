@@ -64,7 +64,7 @@ struct DisplayTelemetry {
   uint16_t rc[18]={};uint32_t rcAge[18]={};bool rcFresh[18]={};
   struct Range{int id=0,orientation=-1;double cm=NAN;uint32_t age=0;bool fresh=false;} ranges[8];uint8_t rangeCount=0;
   char failedUnits[8][65]={};uint8_t unitCount=0;bool serviceCheckFresh=false;uint32_t serviceAge=0;
-  void invalidate(){profileProvided=false;sourceMatching=sourceMismatch=sourceHeartbeat=false;phoneFresh=false;serviceCheckFresh=false;unitCount=0;for(auto& field:fields)field.fresh=false;for(int i=0;i<3;++i)sensorFresh[i]=false;for(int i=0;i<18;++i)rcFresh[i]=false;rangeCount=faultCount=0;++revision;}
+  void invalidate(){profileProvided=false;sourceMatching=sourceMismatch=sourceHeartbeat=false;phoneFresh=false;serviceCheckFresh=false;unitCount=0;for(auto& field:fields)field.fresh=false;for(int i=0;i<3;++i){sensorFresh[i]=false;sensorNode[i]=false;snprintf(sensorState[i],sizeof(sensorState[i]),"unavailable");}for(int i=0;i<18;++i)rcFresh[i]=false;rangeCount=faultCount=0;++revision;}
   bool accept(JsonVariantConst doc,uint32_t now,uint32_t transportAge=0,uint64_t nowUtcMs=0){
     if(!doc["schema"].is<int>()||doc["schema"].is<bool>()||doc["schema"].as<int>()!=1||doc["authority"]!="advisory_only"||!doc["generated_unix_ms"].is<uint64_t>()||doc["generated_unix_ms"].is<bool>()){rejection="schema";invalidate();return false;}
     uint64_t stamp=doc["generated_unix_ms"];

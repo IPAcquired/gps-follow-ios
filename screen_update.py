@@ -21,7 +21,7 @@ APP = 0x10000
 CAPACITY = 4 * 1024 * 1024
 APP_SIZE = 0x1e0000
 TABLE_SHA = "0a8b5720e7b77ff11f1462458c3a509dee79224e5279898f26d6a2e3ae0517b7"
-PRIOR_SHA = "a99ab69d641a9c0eae099b907c785aa0a12337c7e2683bb6bc7aaf2edc2e55a9"
+PRIOR_SHA = "d5c91a63a439b3298212621d694ac7516e8001a041b24795fbcabc523bfd0bf1"
 SERVICE = "orange-pi-wired-desktop-discovery.service"
 
 
@@ -75,11 +75,10 @@ def verify_guard():
 
 def app_files():
     directory = HERE / "firmware"
-    info = json.loads((directory / "provenance.json").read_bytes())
-    old = (directory / "E32R35T-rc3-app.bin").read_bytes()
-    new = (directory / "E32R35T-rc6-app.bin").read_bytes()
+    old = (directory / "stock.bin").read_bytes()
+    new = (directory / "trial.bin").read_bytes()
     table = (directory / "reference-partitions.bin").read_bytes()
-    require(sha(old) == PRIOR_SHA and sha(table) == TABLE_SHA and sha(new) == info["app_sha256"],
+    require(sha(old) == PRIOR_SHA and sha(table) == TABLE_SHA and sha(new) == '5e4bf910726c01ad6004d71516fec754752aa4e54bf5a8d43204697b59c0a4c3',
             "Release image or partition checksum differs.")
     span = (max(len(old), len(new)) + 4095) // 4096 * 4096
     require(0 < span <= APP_SIZE and old[:1] == new[:1] == b'\xe9'
@@ -268,8 +267,9 @@ def transaction(mode, state, binding):
                 record("writing" if mode == "install" else "restoring")
                 started = True
                 write_app(stub, target, span)
+            require(stub.read_flash(APP, len(target)) == target, "Full application readback differs.")
         version = probe(port, binding)
-        require(version == (1 if mode == "install" else None), "Running application identification differs.")
+        require(version == 1, "Running application identification differs.")
         record("installed" if mode == "install" else "restored")
     except BaseException:
         if mode == "install" and started:
@@ -279,7 +279,8 @@ def transaction(mode, state, binding):
             with loader(port, binding) as stub:
                 check_layout(stub, table)
                 write_app(stub, saved, span)
-            require(probe(port, binding) is None, "Recovered app identification differs.")
+                require(stub.read_flash(APP, span) == saved, "Recovery readback differs.")
+            require(probe(port, binding) == 1, "Recovered app identification differs.")
             record("restored")
         raise
     finally:
@@ -299,7 +300,7 @@ def main():
     sys.path.insert(0, str(Path.home() / ".local/share/orange-pi-wired-desktop/current"))
     from paired_system import private_file
     binding = private_file(Path.home() / ".config/orange-pi-wired-desktop/screen.mac", 6)
-    state = Path.home() / ".local/state/paired-display-rc6"
+    state = Path.home() / ".local/state/paired-display-native-telemetry1"
     state.mkdir(mode=0o700, parents=True, exist_ok=True)
     info = state.lstat()
     require(state.resolve() == state and stat.S_ISDIR(info.st_mode) and info.st_uid == os.getuid()

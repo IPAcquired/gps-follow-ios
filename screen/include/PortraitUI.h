@@ -55,16 +55,23 @@ void portraitButton(const String& label,int x,int y,int w,int h,int tx,int ty,ui
 }
 void portraitCard(int slot,const char* title,const String& value,const String& detail,uint16_t accent){
   int x=10+(slot%2)*155,y=105+(slot/2)*145;
-  if(!widgetChanged(4,x,y,145,132,String(title)+"|"+value+"|"+detail)){
-    if(cardAccents[slot]!=accent){lcd.fillRect(x+7,y+10,3,109,accent);cardAccents[slot]=accent;++sideBarDraws;}
-    return;
+  bool first=widgetChanged(4,x,y,145,132,"");
+  if(first){
+    lcd.fillRoundRect(x,y,145,132,7,PANEL);lcd.drawRoundRect(x,y,145,132,7,BORDER);
+    ++cardBodyDraws;
   }
-  cardAccents[slot]=accent;++cardBodyDraws;++sideBarDraws;
-  lcd.fillRoundRect(x,y,145,132,7,PANEL);lcd.drawRoundRect(x,y,145,132,7,BORDER);
-  lcd.fillRect(x+7,y+10,3,109,accent);
-  lcd.setTextColor(MUTED,PANEL);lcd.drawString(portraitFit(title,121,2),x+16,y+9,2);
-  lcd.setTextColor(INK,PANEL);lcd.drawString(portraitFit(value,121,2),x+16,y+40,2);
-  // Details wrap in font 2 instead of the landscape card's small font 1.
+  if(first||cardAccents[slot]!=accent){
+    lcd.fillRect(x+7,y+10,3,109,accent);cardAccents[slot]=accent;++sideBarDraws;
+  }
+  auto line=[&](int dy,const String& content,uint16_t color){
+    String fit=portraitFit(content,121,2);int ty=y+dy,h=lcd.fontHeight(2);
+    if(!widgetChanged(11,x+16,ty,121,h,fit,color)&&!first)return;
+    if(!first)lcd.fillRect(x+16,ty,121,h,PANEL);
+    lcd.setTextColor(color,PANEL);lcd.drawString(fit,x+16,ty,2);
+  };
+  line(9,title,MUTED);line(40,value,INK);
+  if(!widgetChanged(11,x+16,y+65,121,54,detail,MUTED)&&!first)return;
+  if(!first)lcd.fillRect(x+16,y+65,121,54,PANEL);
   lcd.setTextColor(MUTED,PANEL);
   unsigned start=0;for(int r=0;r<3&&start<detail.length();++r){unsigned end=start;
     while(end<detail.length()&&lcd.textWidth(detail.substring(start,end+1),2)<=121)++end;

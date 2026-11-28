@@ -119,7 +119,7 @@ BootMenuGesture bootMenuGesture;
 TaskHandle_t networkHandle=nullptr;
 volatile bool networkParked=false;
 uint32_t sleepRequestedAt=0;
-String renderSignature, cardSignatures[4];
+String renderSignature;
 uint16_t cardAccents[4]={};uint32_t cardBodyDraws=0,sideBarDraws=0;
 constexpr const char* VERSION="flight-team-display-1.3.34-wired-paired-r3.4";
 Gesture touchGesture;
@@ -252,6 +252,7 @@ FlightView snapshot(TickType_t wait=pdMS_TO_TICKS(100),bool* available=nullptr) 
       else if(uint32_t(now-displayTelemetry.received)>6000){result.connected=false;result.armedKnown=false;strlcpy(result.link,"PI OFFLINE",sizeof(result.link));}
       else if(!metricFresh(displayTelemetry.fields[0],displayTelemetry.received,now,3000)||displayTelemetry.fields[0].number!=1){result.connected=false;result.armedKnown=false;strlcpy(result.link,"PI ONLINE / FC OFFLINE",sizeof(result.link));}
       if(!metricFresh(displayTelemetry.fields[1],displayTelemetry.received,now,METRICS[1].ttl))result.armedKnown=false;
+      if(!metricFresh(displayTelemetry.fields[2],displayTelemetry.received,now,METRICS[2].ttl))strlcpy(result.mode,"UNKNOWN",sizeof(result.mode));
       if(!metricFresh(displayTelemetry.fields[4],displayTelemetry.received,now,METRICS[4].ttl))result.speed=NAN;
       if(!metricFresh(displayTelemetry.fields[15],displayTelemetry.received,now,5000))result.voltage=NAN;
       if(!metricFresh(displayTelemetry.fields[19],displayTelemetry.received,now,2000))result.fix=-1;
@@ -329,21 +330,22 @@ void overviewBarColors(const FlightView& v,bool live,uint16_t colors[4]){
 void card(int x, int y, int width, const char* title, const String& value,
           const char* detail, uint16_t accent) {
   int slot=(x>100?1:0)+(y>160?2:0);
-  String signature=String(title)+"|"+value+"|"+detail;
-  if(cardSignatures[slot]==signature){
-    if(cardAccents[slot]!=accent){lcd.fillRoundRect(x+10,y+12,3,51,1,accent);cardAccents[slot]=accent;++sideBarDraws;}
-    return;
+  bool first=widgetCache.changed(10,x,y,width,77,"",0);
+  if(first){
+    lcd.fillRect(x,y,width,77,BG);
+    lcd.fillRoundRect(x,y,width,77,9,PANEL);lcd.drawRoundRect(x,y,width,77,9,BORDER);
+    ++cardBodyDraws;
   }
-  cardSignatures[slot]=signature;
-  cardAccents[slot]=accent;++cardBodyDraws;++sideBarDraws;
-  // Preserve the card layout while reserving the former sprite's 17 KiB for
-  // certificate verification. Repaint only cards whose contents changed.
-  lcd.fillRect(x,y,width,77,BG);
-  lcd.fillRoundRect(x,y,width,77,9,PANEL); lcd.drawRoundRect(x,y,width,77,9,BORDER);
-  lcd.fillRoundRect(x+10,y+12,3,51,1,accent);
-  lcd.setTextColor(MUTED,PANEL); lcd.drawString(title,x+22,y+8,2);
-  lcd.setTextColor(INK,PANEL); lcd.drawString(value,x+22,y+28,4);
-  lcd.setTextColor(MUTED,PANEL); lcd.drawString(detail,x+22,y+57,1);
+  if(first||cardAccents[slot]!=accent){
+    lcd.fillRoundRect(x+10,y+12,3,51,1,accent);cardAccents[slot]=accent;++sideBarDraws;
+  }
+  auto line=[&](int dy,int font,const char* content,uint16_t color){
+    int tx=x+22,ty=y+dy,w=width-26,h=lcd.fontHeight(font);
+    if(!widgetCache.changed(11,tx,ty,w,h,content,color)&&!first)return;
+    if(!first)lcd.fillRect(tx,ty,w,h,PANEL);
+    lcd.setTextColor(color,PANEL);lcd.drawString(content,tx,ty,font);
+  };
+  line(8,2,title,MUTED);line(28,4,value.c_str(),INK);line(57,1,detail,MUTED);
 }
 void frame() {
   if(portrait())return;
@@ -430,10 +432,13 @@ void render() {
   if(maintenanceMenu)signature=String("maintenance|")+maintenanceReady()+"|"+String(WiFi.status()==WL_CONNECTED?WiFi.RSSI():0)+"|"+String(maintenanceEnabled())+"|"+String(millis()/1000);
   if(storageMenu){auto info=storageInfo();signature=String("storage|")+info.state+"|"+info.records+"|"+info.dropped;}
   if(updateMenu){if(xSemaphoreTake(viewMutex,pdMS_TO_TICKS(20))==pdTRUE){signature=String("updates|")+updateNotice+String(updatePolicyKnown)+String(updatePolicyEnabled);xSemaphoreGive(viewMutex);}}
-  if(telemetryPage>=0)signature+="|"+String(displayTelemetry.revision)+"|"+String(millis()/500);
+  if(telemetryPage>=0)signature+="|"+String(millis()/500);
   PiSensors observed;
   if(xSemaphoreTake(viewMutex,pdMS_TO_TICKS(20))==pdTRUE){observed=piSensors;xSemaphoreGive(viewMutex);}
-  if(page==1&&!powerMenu&&!storageMenu)for(int i=0;i<3;++i)signature+="|"+String(piSensorFresh(observed,i,millis()));
+  if(page==1&&!powerMenu&&!storageMenu)for(int i=0;i<3;++i){
+    bool node=observed.node[i]&&uint32_t(millis()-observed.received)<6000;
+    signature+="|"+String(piSensorFresh(observed,i,millis()))+"|"+String(node);
+  }
   if(page==3&&!powerMenu&&!setupEntry)signature+="|"+String(aiRevision)+"|"+String(aiOffset);
   if(page==3&&!setupEntry&&!powerMenu&&!storageMenu&&!maintenanceMenu&&!updateMenu)
     signature=String("ai|")+aiRevision+"|"+aiOffset+"|"+remoteReady;
@@ -448,12 +453,15 @@ void render() {
   scene+="|"+String(themeColors[uiTheme])+"|"+xiaoLightsMenu;
   bool sceneChanged=scene!=lastScene;
   bool full=dirty||sceneChanged; renderSignature=signature; ++framesDrawn;
-  if(sceneChanged){lastScene=scene;wiredViewer.statusPlace="none";widgetCache.reset();for(auto& s:cardSignatures)s="";}
+  if(sceneChanged){lastScene=scene;wiredViewer.statusPlace="none";widgetCache.reset();}
   if(telemetryPage>=0){dirty=false;uint32_t began=micros();drawTelemetryDetails(sceneChanged);if(telemetryPage>=6&&telemetryPage<=8)faultRenderMaxUs=max(faultRenderMaxUs,uint32_t(micros()-began));return;}
   if(portrait()){dirty=false;entryValueDirty=false;renderPortrait(v,observed,live,sceneChanged);return;}
   if(sceneChanged)frame();
   // A button edit may invalidate the body, but never clears the whole screen.
-  else if(full){lcd.fillRect(12,76,456,196,BG);for(auto& s:cardSignatures)s="";}
+  else if(full && !(page<2 && !powerMenu && !storageMenu && !maintenanceMenu && !updateMenu &&
+       !quickJoin && !setupEntry && !appearanceMenu && !backgroundMenu && !xiaoLightsMenu)){
+    lcd.fillRect(12,76,456,196,BG);
+  }
   drawDisplayBatteryHeader();
   drawWiredMenuStatus(full);
   dirty=false;
@@ -543,11 +551,15 @@ void render() {
       "Prepared for 15 seconds - hold BOOT now";
     text(instruction,18,185,powerGate.active?GREEN:AMBER,2);return;
   }
-  lcd.fillRect(12,57,456,16,BG);
-  lcd.fillCircle(19,65,4,live?GREEN:AMBER);
-  text(live?"LIVE TELEMETRY":v.link,30,57,live?GREEN:AMBER,1);
-  if(page<2){lcd.fillRoundRect(335,55,130,22,4,PANEL);text(page==1?"ORANGE PI / DETAILS":"FLIGHT DETAILS",343,63,CYAN,1);}
-  else text("ADVISORY DISPLAY",355,57,MUTED,1);
+  const String linkLabel=live?String("LIVE TELEMETRY"):String(v.link);
+  if(widgetCache.changed(12,12,57,318,16,linkLabel.c_str(),live?GREEN:AMBER)){
+    lcd.fillRect(12,57,318,16,BG);
+    lcd.fillCircle(19,65,4,live?GREEN:AMBER);text(linkLabel,30,57,live?GREEN:AMBER,1);
+  }
+  if(sceneChanged){
+    if(page<2){lcd.fillRoundRect(335,55,130,22,4,PANEL);text(page==1?"ORANGE PI / DETAILS":"FLIGHT DETAILS",343,63,CYAN,1);}
+    else text("ADVISORY DISPLAY",355,57,MUTED,1);
+  }
   if (page==0) {
     uint16_t bars[4];overviewBarColors(v,live,bars);
     card(12,80,221,"FLIGHT STATUS",live&&v.armedKnown?(v.armed?"ARMED":"DISARMED"):"UNKNOWN",
@@ -558,8 +570,11 @@ void render() {
     card(12,168,221,"DRONE GPS / SATELLITES",live&&v.satellites>=0?String(v.satellites):"--",gps.c_str(),bars[2]);
     card(245,168,223,"GROUND SPEED",valueText(live?v.speed:NAN," m/s"),
          "GPS speed can drift at rest",bars[3]);
-    lcd.fillRect(12,250,456,18,BG);
-    text(!touchReady?"Touch calibration required.":phoneTargetLabel(),15,253,phoneTargetAvailable()?GREEN:MUTED,1);
+    const String footer=!touchReady?String("Touch calibration required."):phoneTargetLabel();
+    uint16_t footerColor=phoneTargetAvailable()?GREEN:MUTED;
+    if(widgetCache.changed(12,12,250,456,18,footer.c_str(),footerColor)){
+      lcd.fillRect(12,250,456,18,BG);text(footer,15,253,footerColor,1);
+    }
   } else if (page==1) {
     card(12,80,221,"CORVON 743 V2 (CONFIG)",live?"LIVE":"NO DATA",v.sourceMismatch?"Source mismatch: UART0 / UART4":live?"Heartbeat: Pi UART0 / FC UART4":"No heartbeat: Pi UART0 / FC UART4",live?GREEN:AMBER);
     const char* labels[]={"C1 360 LIDAR / UART2","8x8 MATRIX / UART7","CAMERA / PI USB"};
@@ -567,7 +582,7 @@ void render() {
       card(i==1?12:245,i==0?80:168,i==1?221:223,labels[i],fresh?"LIVE DATA":"UNVERIFIED",
         fresh?"Fresh measurement":observed.node[i]&&uint32_t(millis()-observed.received)<6000?"Port present / no fresh data":"No verified data",fresh?GREEN:AMBER);
     }
-    text("Missing or stale sensor data never means clear space.",17,258,AMBER,1);
+    if(sceneChanged)text("Missing or stale sensor data never means clear space.",17,258,AMBER,1);
   } else if (page==2) {
     const auto status=wiredentry::message(wiredViewer.connection);
     lcd.fillRect(16,99,448,12,BG);text(status.label,16,101,wiredViewer.showIssue()?AMBER:MUTED,1);
@@ -767,7 +782,7 @@ void publishCompactTelemetry(JsonVariantConst doc,uint32_t transportAge){
   if(xSemaphoreTake(viewMutex,pdMS_TO_TICKS(100))!=pdTRUE){telemetryDiag.state="view_busy";return;}
   bool accepted=displayTelemetry.accept(doc,now,transportAge,uint64_t(utc.tv_sec)*1000+utc.tv_usec/1000);
   compactTelemetryEnabled=true;
-  if(!accepted){telemetryDiag.state=displayTelemetry.rejection;current.connected=false;current.armedKnown=false;strlcpy(current.link,"PI DATA INVALID / STALE",sizeof(current.link));strlcpy(piLink.error,"invalid_display_schema",sizeof(piLink.error));xSemaphoreGive(viewMutex);return;}
+  if(!accepted){piSensors=PiSensors();telemetryDiag.state=displayTelemetry.rejection;current.connected=false;current.armedKnown=false;strlcpy(current.link,"PI DATA INVALID / STALE",sizeof(current.link));strlcpy(piLink.error,"invalid_display_schema",sizeof(piLink.error));xSemaphoreGive(viewMutex);return;}
   telemetryDiag.state="accepted";
   ++piLink.telemetryPolls;FlightView v;v.packets=current.packets;v.sourceMismatch=displayTelemetry.sourceMismatch;
   auto fresh=[&](int i){return metricFresh(displayTelemetry.fields[i],now,now,METRICS[i].ttl);};

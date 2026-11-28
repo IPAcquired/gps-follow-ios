@@ -1,21 +1,13 @@
 {
-  "app0_capacity": 1966080,
-  "app0_offset": 65536,
-  "app_bytes": 1508256,
-  "app_sha256": "d5c91a63a439b3298212621d694ac7516e8001a041b24795fbcabc523bfd0bf1",
+  "app_sha256": "5e4bf910726c01ad6004d71516fec754752aa4e54bf5a8d43204697b59c0a4c3",
+  "base_archive_sha256": "e29b0f5df0ad97ace9aeb0b742a7ee1ad82c6537e5430986fa57c9fe70352125",
   "changed_sources": {
-    "screen/include/AutoWired.h": "3e79978beb3d74bd3849941f9f2e00f9af35a8355b41e001e9d97d30a55c0756",
-    "screen/include/WiredKeys.h": "4403252d990dfa4d34adb39f8636d8733c5cadf50275cd2a6bdcd4b0e95dc023",
-    "screen/include/WiredLayout.h": "56c72ca5e7699f13406a4a48edabd09d69927ec020eee33b91837293f39ff5b3",
-    "screen/include/WiredPictures.h": "8244d3fb20290429d159a9f0728374c9ea9294b28c9b3ac03736d2115a82c50e",
-    "screen/src/main.cpp": "a93b6a44a5f70e126c7bdcd4e86e7da4892d8d3a0f74d9d5c044de771e24eb50"
+    "include/DisplayTelemetry.h": "9d259ce9719ffac10cc57970b9df812229ed6484f77b6739558694d1e9ea0f91",
+    "include/PortraitUI.h": "8389d5ee44ff73f00d093606a3b8b13558939d70ca370fbf0926f183fe875e16",
+    "include/TelemetryUI.h": "db3bb4948b374a053a601a434f216bb885a1b038d025437b2e0802f5c82337fc",
+    "src/main.cpp": "750a7a43a9afdff047a5deafb7f292f6b74594650e2f64c1f49de71236834ec0"
   },
-  "environment": "flight_team",
-  "platform": "espressif32@6.12.0",
-  "previous_app_bytes": 1506848,
-  "previous_app_sha256": "a99ab69d641a9c0eae099b907c785aa0a12337c7e2683bb6bc7aaf2edc2e55a9",
   "reference_partitions_sha256": "0a8b5720e7b77ff11f1462458c3a509dee79224e5279898f26d6a2e3ae0517b7",
-  "tag": "wired-field-console-r3.4-rc6",
-  "target": "Hosyond E32R35T / ESP32-WROOM-32E-N4",
+  "rollback_app_sha256": "d5c91a63a439b3298212621d694ac7516e8001a041b24795fbcabc523bfd0bf1",
   "wired_geometry_version": 1
 }
