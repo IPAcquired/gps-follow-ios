@@ -1,0 +1,37 @@
+{
+  "name": "display_telemetry.py",
+  "before": "359ed80c45cb601c6b9caa6fd4b197400815ccf6ec47fc2c8e5f135f53dc5e7a",
+  "after": "73aa283911eced1ac5219166b3ee792be136034e6e443ebed02601a50cadfc3e",
+  "edits": [
+    {
+      "start": 16,
+      "end": 17,
+      "before": "_fault_state = {'busy': False, 'sampled_unix': None, 'units': [], 'sample_succeeded': False}\n",
+      "after": "_fault_state = {'busy': False, 'sampled_unix': None, 'sampled_mono': None, 'units': [], 'sample_succeeded': False}\n"
+    },
+    {
+      "start": 41,
+      "end": 41,
+      "before": "",
+      "after": "        # The first system/user check can precede the second one by seconds.\n        # Date the inventory from the start of observation, before either call.\n        sampled_unix = time.time()\n        sampled_mono = time.monotonic()\n"
+    },
+    {
+      "start": 44,
+      "end": 45,
+      "before": "                _fault_state.update(sampled_unix=time.time(), units=units, sample_succeeded=success)\n",
+      "after": "                _fault_state.update(sampled_unix=sampled_unix, sampled_mono=sampled_mono,\n                                    units=units, sample_succeeded=success)\n"
+    },
+    {
+      "start": 48,
+      "end": 50,
+      "before": "        stamp = _fault_state['sampled_unix']\n        if (stamp is None or now - stamp >= 10) and not _fault_state['busy']:\n",
+      "after": "        observed = time.monotonic()\n        stamp = _fault_state['sampled_mono']\n        if (stamp is None or observed < stamp or observed - stamp >= 10) and not _fault_state['busy']:\n"
+    },
+    {
+      "start": 54,
+      "end": 55,
+      "before": "    age = clock_age(result['sampled_unix'], now)\n",
+      "after": "    stamp = result.pop('sampled_mono')\n    age = int((observed - stamp) * 1000) if stamp is not None and observed >= stamp else None\n"
+    }
+  ]
+}
